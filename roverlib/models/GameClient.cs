@@ -2,12 +2,14 @@
 using System.Net.Http.Json;
 using Roverlib.Models.Responses;
 using Roverlib.Services;
+using Roverlib.Utils;
+
 namespace Roverlib.Models;
-public class GameClient
+public class RoverTeam
 {
     private readonly HttpClient client;
     public event NotifyNeighborsDelegate NotifyGameManager;
-    public GameClient(string name, string gameId, JoinResponse response, HttpClient client)
+    public RoverTeam(string name, string gameId, JoinResponse response, HttpClient client)
     {
         Name = name;
         GameId = gameId;
@@ -47,10 +49,14 @@ public class GameClient
     }
     public async Task MoveHeliAsync(int X, int Y)
     {
-        var res = await client.GetAsync($"/Game/MoveIngenuity?token={Token}&destinationX={X}&destinationY={Y}");
+        var res = await client.GetAsync($"/Game/MoveIngenuity?token={Token}&destinationRow={X}&destinationColumn={Y}");
         if (res.IsSuccessStatusCode)
         {
             var result = await res.Content.ReadFromJsonAsync<MoveResponse>();
+            if (result.message.Contains("Ingenuity cannot fly that far at once."))
+            {
+                throw new Exception("Ingenuity cannot fly that far at once.");
+            }
             Heli.Location = (result.X, result.Y);
             Heli.Battery = result.batteryLevel;
             updateVisited(result.neighbors);
@@ -65,6 +71,38 @@ public class GameClient
             catch { }
             throw new ProblemDetailException(result);
         }
+    }
+
+    public async Task MoveHeliToPointAsync((int X, int Y) point)
+    {
+        // Find path to point and move heli along it two steps at a time
+        if (point == Heli.Location)
+        {
+            return;
+        }
+        var line = new ParametricLine(Rover.Location, point);
+        var path = line.GetDiscretePointsAlongLine().ToQueue();
+        while (path.Count > 0)
+        {
+            var next = path.Peek();
+            try
+            {
+                await MoveHeliAsync(next.X, next.Y);
+                path.Dequeue();
+                path.Dequeue();
+            }
+            catch
+            {
+            }
+        }
+        await MoveHeliAsync(point.X, point.Y);
+    }
+
+
+
+    private List<(int X, int Y)> getNeighbors((int X, int Y) start)
+    {
+        return new List<(int X, int Y)>() { (start.X + 1, start.Y), (start.X - 1, start.Y), (start.X, start.Y + 1), (start.X, start.Y - 1) };
     }
 
     private void updateVisited(IEnumerable<Neighbor> neighbors)

@@ -7,14 +7,14 @@ public delegate void NotifyNeighborsDelegate(NewNeighborsEventArgs args);
 public partial class TrafficControlService
 {
     private readonly HttpClient client;
-    public List<GameClient> Games { get; set; }
+    public List<RoverTeam> Teams { get; set; }
     public Board GameBoard { get; set; }
 
 
     public TrafficControlService(HttpClient client)
     {
         this.client = client;
-        Games = new();
+        Teams = new();
     }
 
     public async Task JoinNewGame(string name, string gameid)
@@ -25,9 +25,9 @@ public partial class TrafficControlService
             var res = await result.Content.ReadFromJsonAsync<JoinResponse>();
             if (GameBoard == null)
                 GameBoard = new Board(res);
-            var newGame = new GameClient(name, gameid, res, client);
+            var newGame = new RoverTeam(name, gameid, res, client);
             newGame.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
-            Games.Add(newGame);
+            Teams.Add(newGame);
         }
         else
         {
@@ -53,8 +53,8 @@ public partial class TrafficControlService
 
     public async Task<GameStatus> CheckStatus()
     {
-        if (Games.Count == 0) return GameStatus.Invalid;
-        var res = await client.GetAsync($"/Game/Status?token={Games[0].Token}");
+        if (Teams.Count == 0) return GameStatus.Invalid;
+        var res = await client.GetAsync($"/Game/Status?token={Teams[0].Token}");
         if (res.IsSuccessStatusCode)
         {
             try
