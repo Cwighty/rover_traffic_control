@@ -11,4 +11,15 @@ public class HeliPatterns {
     }
     return circle;
   }
+
+ 
+  public static List<(int X, int Y)> RotateList(List<(int X, int Y)> list, int rotations){
+    var rotated = new List<(int X, int Y)>();
+    for (int i = 0; i < list.Count; i++)
+    {
+      var index = (i + rotations) % list.Count;
+      rotated.Add(list[index]);
+    }
+    return rotated;
+  }
 }

@@ -80,7 +80,7 @@ public class RoverTeam
         {
             return;
         }
-        var line = new ParametricLine(Rover.Location, point);
+        var line = new ParametricLine(Heli.Location, point);
         var path = line.GetDiscretePointsAlongLine().ToQueue();
         while (path.Count > 0)
         {
