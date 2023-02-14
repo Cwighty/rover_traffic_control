@@ -1,12 +1,13 @@
-﻿using System.Net.Http.Json;
+﻿using System.Collections.Concurrent;
+using System.Net.Http.Json;
 using Roverlib.Models.Responses;
+using Roverlib.Services;
 namespace Roverlib.Models;
-
-public class Game
+public class GameClient
 {
     private readonly HttpClient client;
-
-    public Game(string name, string gameId, JoinResponse response, HttpClient client)
+    public event NotifyNeighborsDelegate NotifyGameManager;
+    public GameClient(string name, string gameId, JoinResponse response, HttpClient client)
     {
         Name = name;
         GameId = gameId;
@@ -20,7 +21,6 @@ public class Game
     public string GameId { get; set; }
     public string Name { get; set; }
     public string Token { get; set; }
-    public Board Board { get; set; }
     public PerserveranceRover Rover { get; set; }
     public IngenuityRover Heli { get; set; }
 
@@ -34,6 +34,7 @@ public class Game
             Rover.Battery = result.batteryLevel;
             Enum.TryParse<Orientation>(result.orientation, out var orient);
             Rover.Orientation = orient;
+            updateVisited(result.neighbors);
         }
         else
         {
@@ -68,9 +69,9 @@ public class Game
 
     private void updateVisited(IEnumerable<Neighbor> neighbors)
     {
-        foreach (var n in neighbors)
+        if (NotifyGameManager != null)
         {
-            Board.VisitedNeighbors.TryAdd(n.HashToLong(), n);
+            NotifyGameManager(new NewNeighborsEventArgs(neighbors));
         }
     }
 }

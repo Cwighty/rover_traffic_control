@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Roverlib.Models.Responses;
 
 namespace Roverlib.Models;
@@ -16,5 +17,5 @@ public class Board
     public int Height { get; set; }
     public (int X, int Y) Target { get; set; }
     public List<LowResolutionMap> LowResMap { get; set; }
-    public Dictionary<long, Neighbor> VisitedNeighbors { get; set; }
+    public ConcurrentDictionary<long, Neighbor> VisitedNeighbors { get; set; }
 }

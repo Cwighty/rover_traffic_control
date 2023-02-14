@@ -10,9 +10,9 @@ namespace Roverlib.Services
 {
     public class RoverController
     {
-        private readonly GameManagerService gm;
+        private readonly TrafficControlService gm;
 
-        public RoverController(GameManagerService gm)
+        public RoverController(TrafficControlService gm)
         {
             this.gm = gm;
         }

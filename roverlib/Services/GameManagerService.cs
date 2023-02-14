@@ -3,11 +3,15 @@ using Roverlib.Models;
 using Roverlib.Models.Responses;
 
 namespace Roverlib.Services;
-public partial class GameManagerService
+public delegate void NotifyNeighborsDelegate(NewNeighborsEventArgs args);
+public partial class TrafficControlService
 {
     private readonly HttpClient client;
-    public List<Game> Games { get; set; }
-    public GameManagerService(HttpClient client)
+    public List<GameClient> Games { get; set; }
+    public Board GameBoard { get; set; }
+
+
+    public TrafficControlService(HttpClient client)
     {
         this.client = client;
         Games = new();
@@ -19,12 +23,24 @@ public partial class GameManagerService
         if (result.IsSuccessStatusCode)
         {
             var res = await result.Content.ReadFromJsonAsync<JoinResponse>();
-            Games.Add(new Game(name, gameid, res, client));
+            if (GameBoard == null)
+                GameBoard = new Board(res);
+            var newGame = new GameClient(name, gameid, res, client);
+            newGame.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
+            Games.Add(newGame);
         }
         else
         {
             var res = await result.Content.ReadFromJsonAsync<ProblemDetail>();
             throw new ProblemDetailException(res);
+        }
+    }
+
+    private void onNewNeighbors(NewNeighborsEventArgs args)
+    {
+        foreach (var n in args.Neighbors)
+        {
+            GameBoard.VisitedNeighbors.TryAdd(n.HashToLong(), n);
         }
     }
 

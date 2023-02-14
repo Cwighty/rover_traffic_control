@@ -7,14 +7,14 @@ HttpClient client = new HttpClient()
     BaseAddress = new Uri("https://snow-rover.azurewebsites.net/")
 };
 
-var gameManager = new GameManagerService(client);
+var gameManager = new TrafficControlService(client);
 
 for (int i = 0; i < 8; i++)
 {
     await gameManager.JoinNewGame($"{i}", "g");
 }
 
-while (gameManager.CheckStatus().Result != GameManagerService.GameStatus.Playing) ;
+while (gameManager.CheckStatus().Result != TrafficControlService.GameStatus.Playing) ;
 
 while (true)
 {
