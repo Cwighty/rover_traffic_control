@@ -44,13 +44,6 @@ public partial class TrafficControlService
         }
     }
 
-    public enum GameStatus
-    {
-        Playing,
-        Joining,
-        Invalid
-    }
-
     public async Task<GameStatus> CheckStatus()
     {
         if (Teams.Count == 0) return GameStatus.Invalid;
@@ -71,50 +64,6 @@ public partial class TrafficControlService
         }
         return GameStatus.Invalid;
     }
-
-
-    // public async Task MovePerserveranceToPointAsync(int x, int y)
-    // {
-    //     _ = CurrentGame.PerserveranceRover.Location;
-    //     var targetLoc = new Location(x, y);
-    //     try
-    //     {
-    //         Location curLoc = CurrentGame.PerserveranceRover.Location;
-    //         var curOrientation = CurrentGame.PerserveranceRover.Orientation;
-    //         while (curOrientation != Orientation.North)
-    //         {
-    //             await MovePerserveranceAsync(Direction.Right);
-    //             curOrientation = CurrentGame.PerserveranceRover.Orientation;
-    //         }
-    //         while (curLoc.Column < targetLoc.Column)
-    //         {
-    //             await MovePerserveranceAsync(Direction.Forward);
-    //             curLoc = CurrentGame.PerserveranceRover.Location;
-    //         }
-    //         while (curLoc.Column > targetLoc.Column)
-    //         {
-    //             await MovePerserveranceAsync(Direction.Reverse);
-    //             curLoc = CurrentGame.PerserveranceRover.Location;
-    //         }
-
-    //         while (curOrientation != Orientation.East)
-    //         {
-    //             await MovePerserveranceAsync(Direction.Right);
-    //             curOrientation = CurrentGame.PerserveranceRover.Orientation;
-    //         }
-    //         while (curLoc.Row < targetLoc.Row)
-    //         {
-    //             await MovePerserveranceAsync(Direction.Forward);
-    //             curLoc = CurrentGame.PerserveranceRover.Location;
-    //         }
-    //         while (curLoc.Row > targetLoc.Row)
-    //         {
-    //             await MovePerserveranceAsync(Direction.Reverse);
-    //             curLoc = CurrentGame.PerserveranceRover.Location;
-    //         }
-    //     }
-    //     catch { }
-    // }
 }
 
 
