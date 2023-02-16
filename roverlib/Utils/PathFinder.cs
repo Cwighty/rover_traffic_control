@@ -1,4 +1,5 @@
 ﻿
+using System.Collections.Concurrent;
 using Roverlib.Models.Responses;
 
 namespace Roverlib.Utils;
@@ -17,7 +18,7 @@ public class PathFinder
         }
     }
 
-    public static List<(int, int)> FindPathAStar(Dictionary<long, Neighbor> neighbors, (int, int) start, (int, int) end)
+    public static List<(int, int)> FindPathAStar(ConcurrentDictionary<long, Neighbor> neighbors, (int, int) start, (int, int) end)
     {
         var heap = new SortedSet<Node>();
         heap.Add(new Node { X = start.Item1, Y = start.Item2, Cost = 0, Path = new List<(int, int)> { start } });
