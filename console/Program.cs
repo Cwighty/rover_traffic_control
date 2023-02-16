@@ -11,7 +11,7 @@ var helicircle = HeliPatterns.GetStartingCircle((250, 250), 150, 10);
 
 for (int i = 0; i < 10; i++)
 {
-  await trafficControl.JoinNewGame($"{i}", "a");
+  await trafficControl.JoinNewGame($"{i}", "y");
 }
 while (trafficControl.CheckStatus().Result != TrafficControlService.GameStatus.Playing) ;
 List<Task> moveHelis = new List<Task>();
