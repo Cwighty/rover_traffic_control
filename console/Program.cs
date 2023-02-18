@@ -3,12 +3,12 @@ using Roverlib.Utils;
 
 HttpClient client = new HttpClient()
 {
-    // BaseAddress = new Uri("https://snow-rover.azurewebsites.net/")
-    BaseAddress = new Uri("https://localhost:64793/")
+    BaseAddress = new Uri("https://snow-rover.azurewebsites.net/")
+    // BaseAddress = new Uri("https://localhost:64793/")
 };
 
-const int NUM_TEAMS = 1;
-const string GAME_ID = "a";
+const int NUM_TEAMS = 10;
+const string GAME_ID = "ai";
 var trafficControl = new TrafficControlService(client);
 
 await joinTeams(NUM_TEAMS, GAME_ID, trafficControl);
@@ -16,8 +16,10 @@ var center = trafficControl.GameBoard.Target;
 var radius = Math.Min(trafficControl.GameBoard.Width / 2, trafficControl.GameBoard.Height / 2);
 await waitForPlayingStatusAsync(trafficControl);
 
-//Task.Run(() => breathingCircle(NUM_TEAMS, trafficControl, center, radius));
-Task.Run(() => sendHelisToTarget(trafficControl));
+Task.Run(() => breathingCircle(NUM_TEAMS, trafficControl, center, radius));
+// Task.Run(()=> clockHand(NUM_TEAMS, trafficControl, center, radius));
+// Task.Run(() => sendHelisToTarget(trafficControl));
+// Task.Run(() => spiral(NUM_TEAMS, trafficControl, center));
 pathFindRoversAsync(trafficControl);
 
 while (true)
@@ -63,7 +65,7 @@ static async Task pathFindRoversAsync(TrafficControlService trafficControl)
         {
             path = PathFinder.FindPathAStar(trafficControl.GameBoard.VisitedNeighbors, team.Rover.Location, trafficControl.GameBoard.Target);
             Thread.Sleep(3000);
-            // team.StepRoverTowardPointAsync(trafficControl.GameBoard.Target.X, trafficControl.GameBoard.Target.Y);
+            team.StepRoverTowardPointAsync(trafficControl.GameBoard.Target.X, trafficControl.GameBoard.Target.Y);
         }
     }
     foreach (var team in trafficControl.Teams)
@@ -99,3 +101,13 @@ static void clockHand(int NUM_TEAMS, TrafficControlService trafficControl, (int 
         moveHeliSwarmToPoints(trafficControl, flightPlan);
     }
 }
+
+static void spiral(int NUM_TEAMS, TrafficControlService trafficControl, (int X, int Y) center)
+{
+    for (int i = 1; i < 360; i+=10)
+    {
+      var rotation = HeliPatterns.GeneratePhyllotaxisSpiral(center, i, NUM_TEAMS, distanceBetween: 50);
+      moveHeliSwarmToPoints(trafficControl, rotation);
+    }
+}
+
