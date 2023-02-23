@@ -7,6 +7,9 @@ public delegate void NotifyNeighborsDelegate(NewNeighborsEventArgs args);
 public partial class TrafficControlService
 {
     private readonly HttpClient client;
+    private (int X, int Y) center;
+    private int radius;
+
     public List<RoverTeam> Teams { get; set; }
     public Board GameBoard { get; set; }
 
@@ -15,11 +18,12 @@ public partial class TrafficControlService
     {
         this.client = client;
         Teams = new();
+
     }
 
-    public async Task JoinNewGame(string name, string gameid)
+    async Task joinNewGame(string name, string gameid)
     {
-        var result = await client.GetAsync($"/Game/Join?gameId={gameid}&name={GenerateRandomName()}");
+        var result = await client.GetAsync($"/Game/Join?gameId={gameid}&name={generateRandomName()}");
         if (result.IsSuccessStatusCode)
         {
             var res = await result.Content.ReadFromJsonAsync<JoinResponse>();
@@ -34,6 +38,17 @@ public partial class TrafficControlService
             var res = await result.Content.ReadFromJsonAsync<ProblemDetail>();
             throw new ProblemDetailException(res);
         }
+    }
+
+
+    public async Task JoinTeams(int numTeams, string gameId)
+    {
+        for (int i = 0; i < numTeams; i++)
+        {
+            await joinNewGame($"{i}", gameId);
+        }
+        center = GameBoard.Target;
+        radius = Math.Min(GameBoard.Width / 2, GameBoard.Height / 2);
     }
 
     private void onNewNeighbors(NewNeighborsEventArgs args)
@@ -65,7 +80,8 @@ public partial class TrafficControlService
         return GameStatus.Invalid;
     }
 
-    static string GenerateRandomName(){
+    static string generateRandomName()
+    {
         var animals = new HashSet<string>{
             "Aardvark",
             "Albatross",
@@ -253,7 +269,82 @@ public partial class TrafficControlService
         var random = new Random();
         var animal = animals.ElementAt(random.Next(animals.Count));
         var letterAdjective = letterAdjectives.ElementAt(random.Next(letterAdjectives.Count));
-        return $"{letterAdjective} {animal}";
+        return $"{letterAdjective}{animal}";
+    }
+
+    public void FlyHeliFormation(string formation = "circle")
+    {
+        int numTeams = Teams.Count(); ;
+        if (formation == "circle")
+        {
+            Task.Run(() => breathingCircle(numTeams, center, radius));
+        }
+        else if (formation == "spiral")
+        {
+            Task.Run(() => spiral(numTeams, center));
+        }
+        else if (formation == "clock")
+        {
+            Task.Run(() => clockHand(numTeams, center, radius));
+        }
+        else if (formation == "target")
+        {
+            Task.Run(() => sendHelisToTarget());
+        }
+    }
+
+
+    void breathingCircle(int NUM_TEAMS, (int X, int Y) center, int radius)
+    {
+        var helicircle = HeliPatterns.GenerateCircle(center, radius, NUM_TEAMS);
+        var rotation = HeliPatterns.RotateList(helicircle, 0);
+        for (int i = 5; i < 100; i++)
+        {
+            moveHeliSwarmToPoints(rotation);
+            rotation = HeliPatterns.RotateList(rotation, i);
+        }
+    }
+
+    void sendHelisToTarget()
+    {
+        foreach (var team in Teams)
+        {
+            team.MoveHeliToPointAsync(GameBoard.Target);
+        }
+    }
+
+    void clockHand(int NUM_TEAMS, (int X, int Y) center, int radius)
+    {
+        for (int i = 1; i < 360; i++)
+        {
+            var flightPlan = HeliPatterns.GenerateClockHand(center, radius, i, NUM_TEAMS);
+            moveHeliSwarmToPoints(flightPlan);
+        }
+    }
+
+    void spiral(int NUM_TEAMS, (int X, int Y) center)
+    {
+        for (int i = 1; i < 360; i += 10)
+        {
+            var rotation = HeliPatterns.GeneratePhyllotaxisSpiral(center, i, NUM_TEAMS, distanceBetween: 50);
+            moveHeliSwarmToPoints(rotation);
+        }
+    }
+    void moveHeliSwarmToPoints(List<(int X, int Y)> flightPattern)
+    {
+        List<Task> moveHelis = new List<Task>();
+        for (int i = 0; i < Teams.Count; i++)
+        {
+            var team = Teams[i];
+            var circlePos = flightPattern[i];
+            var task = team.MoveHeliToPointAsync(circlePos);
+            moveHelis.Add(task);
+        }
+        try
+        {
+            Task.WaitAll(moveHelis.ToArray());
+        }
+        catch { }
     }
 }
 
