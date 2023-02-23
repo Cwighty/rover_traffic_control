@@ -6,8 +6,12 @@ HttpClient client = new HttpClient()
     BaseAddress = new Uri("https://snow-rover.azurewebsites.net/")
     // BaseAddress = new Uri("https://localhost:64793/")
 };
-
-int NUM_TEAMS = args.Where(a => a.StartsWith("-t")).Select(a => int.Parse(a.Substring(2))).FirstOrDefault();
+int NUM_TEAMS = 10;
+try
+{
+    NUM_TEAMS = args.Where(a => a.StartsWith("-t")).Select(a => int.Parse(a.Substring(2))).FirstOrDefault();
+}
+catch { }
 string GAME_ID = args.Where(a => a.StartsWith("-g")).Select(a => a.Substring(2)).FirstOrDefault() ?? "a";
 string flightPattern = args.Where(a => a.StartsWith("-f")).Select(a => a.Substring(2)).FirstOrDefault() ?? "circle";
 var trafficControl = new TrafficControlService(client);
