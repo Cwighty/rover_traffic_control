@@ -1,66 +1,106 @@
-﻿using Roverlib.Services;
+﻿using CommandLine;
+using Roverlib.Models;
+using Roverlib.Services;
 using Roverlib.Utils;
 
-HttpClient client = new HttpClient()
+internal class Program
 {
-    BaseAddress = new Uri("https://snow-rover.azurewebsites.net/")
-    // BaseAddress = new Uri("https://localhost:64793/")
-};
-int NUM_TEAMS = 10;
-string GAME_ID = "t";
-try
-{
-    //NUM_TEAMS = args.Where(a => a.StartsWith("-t")).Select(a => int.Parse(a.Substring(2))).FirstOrDefault();
-}
-catch { }
-//GAME_ID = args.Where(a => a.StartsWith("-g")).Select(a => a.Substring(2)).FirstOrDefault() ?? "b";
-//string flightPattern = args.Where(a => a.StartsWith("-f")).Select(a => a.Substring(2)).FirstOrDefault() ?? "circle";
-var trafficControl = new TrafficControlService(client);
-
-// var map = MapReader.ReadMap("../maps/map01.json");
-// var start = MapReader.FindPath(map, (0, 0), (50, 50));
-
-await trafficControl.JoinTeams(NUM_TEAMS, GAME_ID);
-
-await waitForPlayingStatusAsync(trafficControl);
-
-trafficControl.FlyHeliFormation(out var source, formation: "spiral");
-pathFindRoversAsync(trafficControl, source);
-
-while (true)
-{ }
-
-
-
-static async Task waitForPlayingStatusAsync(TrafficControlService trafficControl)
-{
-    while (await trafficControl.CheckStatus() != TrafficControlService.GameStatus.Playing) ;
-}
-
-
-
-static async Task pathFindRoversAsync(TrafficControlService trafficControl, CancellationTokenSource source)
-{
-    var path = new List<(int, int)>();
-    while (path.Count == 0)
+    public class Options
     {
-        foreach (var team in trafficControl.Teams)
+        [Option('t', "teams", Required = false, HelpText = "Number of teams to join")]
+        public int NumTeams { get; set; }
+        [Option('g', "game", Required = false, HelpText = "Game ID")]
+        public string? GameId { get; set; }
+        [Option('f', "flight", Required = false, HelpText = "Flight pattern (circle, target, spiral, clock))")]
+        public string? FlightPattern { get; set; }
+        [Option('u', "url", Required = false, HelpText = "URL of game server")]
+        public string? Url { get; set; }
+        [Option('h', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
+        public string? Heuristic { get; set; }
+        [Option('q', "quickmode", Required = false, HelpText = "No helis, just go straight to target from nearest midpoint")]
+        public bool QuickMode { get; set; }
+    }
+    private static async Task Main(string[] args)
+    {
+        var options = Parser.Default.ParseArguments<Options>(args).Value;
+
+        HttpClient client = new HttpClient()
         {
-            var map = trafficControl.GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
-            path = MapReader.FindPath(map, team.Rover.Location, trafficControl.GameBoard.Target);
-            Thread.Sleep(3000);
-            if (path.Count > 0)
+            BaseAddress = new Uri(options.Url ?? "https://snow-rover.azurewebsites.net/")
+            // BaseAddress = new Uri("https://localhost:64793/")
+        };
+        int NUM_TEAMS = options.NumTeams > 0 ? options.NumTeams : 10;
+        string GAME_ID = options.GameId ?? "a";
+
+        var trafficControl = new TrafficControlService(client);
+
+        await trafficControl.JoinTeams(NUM_TEAMS, GAME_ID);
+
+        await waitForPlayingStatusAsync(trafficControl);
+
+        if (options.QuickMode)
+        {
+            var t = Task.Run(() => easyMoneyAsync(trafficControl));
+        }
+        else
+        {
+            trafficControl.FlyHeliFormation(out var source, trafficControl, formation: options.FlightPattern ?? "circle");
+            var t = Task.Run(() => pathFindRoversAsync(trafficControl, source));
+        }
+
+        while (true)
+        { }
+
+
+
+        static async Task pathFindRoversAsync(TrafficControlService trafficControl, CancellationTokenSource source)
+        {
+            foreach (var team in trafficControl.Teams)
             {
-                var pathQueue = path.ToQueue();
-                pathQueue.Dequeue();
-                team.MoveRoverAlongPathAsync(pathQueue);
-                source.Cancel();
-                break;
+                var t = Task.Run(() => team.MoveRoverToNearestAxisAsync(trafficControl));
             }
-            //team.StepRoverTowardPointAsync(trafficControl.GameBoard.Target.X, trafficControl.GameBoard.Target.Y);
+            var path = new List<(int, int)>();
+            while (path.Count == 0)
+            {
+                var sent = new List<RoverTeam>();
+                foreach (var team in trafficControl.Teams)
+                {
+                    var map = trafficControl.GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
+                    path = MapReader.FindPath(map, team.Rover.Location, trafficControl.GameBoard.Target);
+                    Thread.Sleep(3000);
+                    if (path.Count > 0)
+                    {
+                        var pathQueue = path.ToQueue();
+                        pathQueue.Dequeue();
+                        if (!team.HeliCancelSource.IsCancellationRequested)
+                        {
+                            var t = Task.Run(() => team.MoveRoverAlongPathAsync(pathQueue));
+                        }
+                        team.CancelHeli();
+                    }
+                }
+            }
+        }
+
+        static async Task easyMoneyAsync(TrafficControlService trafficControl)
+        {
+            var tasks = new List<Task>();
+            foreach (var team in trafficControl.Teams)
+            {
+                //team.MoveRoverToPointAsync(trafficControl.GameBoard.Target.X, trafficControl.GameBoard.Target.Y);
+                var task = team.MoveRoverToNearestAxisAsync(trafficControl);
+                tasks.Add(task);
+            }
+            Task.WaitAll(tasks.ToArray());
+            foreach (var team in trafficControl.Teams)
+            {
+                var t = Task.Run(() => team.MoveRoverToPointAsync(trafficControl.GameBoard.Target.X, trafficControl.GameBoard.Target.Y));
+            }
+        }
+
+        static async Task waitForPlayingStatusAsync(TrafficControlService trafficControl)
+        {
+            while (await trafficControl.CheckStatus() != TrafficControlService.GameStatus.Playing) ;
         }
     }
 }
-
-
-

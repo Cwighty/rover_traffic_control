@@ -40,54 +40,12 @@ public class MapReader
     }
 
 
-    // public static List<(int X, int Y)> FindPath(Dictionary<(int X, int Y), int> map, (int X, int Y) start, (int X, int Y) target)
-    // {
-    //     map = GetSubmap(map, start, target, 10);
-    //     // Check if the start and target positions are within the map
-    //     if (!map.ContainsKey(start) || !map.ContainsKey(target))
-    //     {
-    //         return new List<(int X, int Y)>();
-    //     }
 
-    //     // A* algorithm to find most efficient path
-    //     var heap = new SimplePriorityQueue<Node, int>();
-    //     heap.Enqueue(new Node { X = start.X, Y = start.Y, Cost = 0, Path = new List<(int X, int Y)> { start } }, 0);
-    //     var visited = new HashSet<(int X, int Y)>();
-    //     while (heap.Count > 0)
-    //     {
-    //         var node = heap.Dequeue();
-    //         if (visited.Contains((node.X, node.Y)))
-    //         {
-    //             continue;
-    //         }
-    //         visited.Add((node.X, node.Y));
-    //         if (node.X == target.X && node.Y == target.Y)
-    //         {
-    //             return node.Path;
-    //         }
-    //         foreach (var dir in new[] { (0, 1), (0, -1), (1, 0), (-1, 0) })
-    //         {
-    //             int newX = node.X + dir.Item1;
-    //             int newY = node.Y + dir.Item2;
-    //             var n = (newX, newY);
-    //             if (map.ContainsKey(n) && !visited.Contains(n))
-    //             {
-    //                 int newCost = node.Cost + map[n];
-    //                 var newPath = new List<(int X, int Y)>(node.Path);
-    //                 newPath.Add((newX, newY));
-    //                 heap.Enqueue(new Node { X = newX, Y = newY, Cost = newCost, Path = newPath }, newCost);
-    //             }
-    //         }
-    //     }
-
-    //     // If no path was found, return an empty list
-    //     return new List<(int X, int Y)>();
-    // }
 
 
     public static List<(int X, int Y)> FindPath(Dictionary<(int X, int Y), int> map, (int X, int Y) start, (int X, int Y) target)
     {
-        map = GetSubmap(map, start, target, 10);
+        map = GetSubmap(map, start, target, 20);
 
         // Check if the start and target positions are within the map
         if (!map.ContainsKey(start) || !map.ContainsKey(target))
@@ -97,7 +55,7 @@ public class MapReader
 
         // A* algorithm to find most efficient path
         var heap = new PriorityQueue<Node, int>();
-        heap.Enqueue(new Node { X = start.X, Y = start.Y, Cost = 0, Heuristic = ManhattanDistance(start, target), Path = new List<(int X, int Y)> { start } }, 0);
+        heap.Enqueue(new Node { X = start.X, Y = start.Y, Cost = 0, Heuristic = EuclideanDistance(start, target), Path = new List<(int X, int Y)> { start } }, 0);
         var visited = new HashSet<(int X, int Y)>();
         while (heap.Count > 0)
         {
@@ -119,7 +77,7 @@ public class MapReader
                 if (map.ContainsKey(n) && !visited.Contains(n))
                 {
                     int newCost = node.Cost + map[n];
-                    int newHeuristic = ManhattanDistance(n, target);
+                    int newHeuristic = EuclideanDistance(n, target);
                     var newPath = new List<(int X, int Y)>(node.Path);
                     if (newPath.Count > 1 && (newX - newPath[newPath.Count - 2].Item1) * (newY - newPath[newPath.Count - 2].Item2) != 0)
                     {
@@ -131,13 +89,17 @@ public class MapReader
             }
         }
 
-        // If no path was found, return an empty list
         return new List<(int X, int Y)>();
     }
 
     private static int ManhattanDistance((int X, int Y) a, (int X, int Y) b)
-    {
+    { // as the cars drive
         return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+    }
+
+    private static int EuclideanDistance((int X, int Y) a, (int X, int Y) b)
+    { // as the crow flies
+        return (int)Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
     }
 
 
@@ -147,7 +109,8 @@ public class MapReader
     (int, int) target,
     int width)
     {
-        // Compute the slope and intercept of the line connecting start and target
+        // Optimize the map by only including the cells that are within the buffer
+        // Compute the slope and intercept 
         double m = (double)(target.Item2 - start.Item2) / (double)(target.Item1 - start.Item1);
         double b = (double)start.Item2 - m * (double)start.Item1;
 
@@ -168,7 +131,7 @@ public class MapReader
                 (int, int) pos = (rowIdx, colIdx);
                 if (mapData.TryGetValue(pos, out int val))
                 {
-                    // Compute the distance between the current cell and the line connecting startPos and targetPos
+                    // check distance to see if it is within the buffer zone
                     double dist = Math.Abs(m * pos.Item1 - pos.Item2 + b) / Math.Sqrt(Math.Pow(m, 2) + 1);
                     if (dist <= width)
                     {

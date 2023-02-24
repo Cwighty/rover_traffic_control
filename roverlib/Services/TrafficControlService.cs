@@ -272,7 +272,7 @@ public partial class TrafficControlService
         return $"{letterAdjective}{animal}";
     }
 
-    public void FlyHeliFormation(out CancellationTokenSource source, string formation = "circle")
+    public void FlyHeliFormation(out CancellationTokenSource source, TrafficControlService tc, string formation = "circle")
     {
         CancellationTokenSource cts = new CancellationTokenSource();
         source = cts;
@@ -280,6 +280,13 @@ public partial class TrafficControlService
         int numTeams = Teams.Count(); ;
         if (formation == "circle")
         {
+            var tasks = new List<Task>();
+            foreach (var team in Teams)
+            {
+                var task = team.MoveHeliToNearestAxisAsync(tc);
+                tasks.Add(task);
+            }
+            Task.WaitAll(tasks.ToArray());
             Task.Run(() => breathingCircle(numTeams, center, radius, token));
         }
         else if (formation == "spiral")
@@ -301,6 +308,14 @@ public partial class TrafficControlService
     {
         var helicircle = HeliPatterns.GenerateCircle(center, radius, NUM_TEAMS);
         var rotation = HeliPatterns.RotateList(helicircle, 0);
+
+        var target = GameBoard.Target;
+        var startingPoints = new List<(int X, int Y)>();
+        for (int j = 0; j < Teams.Count(); j++)
+        {
+            startingPoints.Add(target);
+        }
+        moveHeliSwarmToPoints(startingPoints);
         for (int i = 5; i < 100; i++)
         {
             if (token.IsCancellationRequested)
@@ -356,8 +371,11 @@ public partial class TrafficControlService
         {
             var team = Teams[i];
             var circlePos = flightPattern[i];
-            var task = team.MoveHeliToPointAsync(circlePos);
-            moveHelis.Add(task);
+            if (!team.HeliCancelSource.IsCancellationRequested)
+            {
+                var task = team.MoveHeliToPointAsync(circlePos);
+                moveHelis.Add(task);
+            }
         }
         try
         {

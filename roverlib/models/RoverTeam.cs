@@ -18,12 +18,17 @@ public class RoverTeam
         Rover = new PerserveranceRover(response);
         Heli = new IngenuityRover(response);
         updateVisited(response.neighbors);
+        HeliCancelSource = new CancellationTokenSource();
     }
     public string GameId { get; set; }
     public string Name { get; set; }
     public string Token { get; set; }
     public PerserveranceRover Rover { get; set; }
     public IngenuityRover Heli { get; set; }
+
+    public CancellationTokenSource HeliCancelSource { get; private set; }
+
+
 
     public async Task MoveHeliAsync(int X, int Y)
     {
@@ -61,6 +66,10 @@ public class RoverTeam
         var path = line.GetDiscretePointsAlongLine().ToQueue();
         while (path.Count > 0)
         {
+            if (HeliCancelSource.IsCancellationRequested)
+            {
+                return;
+            }
             var next = path.Peek();
             try
             {
@@ -74,6 +83,28 @@ public class RoverTeam
         }
         await MoveHeliAsync(point.X, point.Y);
     }
+
+    public async Task MoveHeliToNearestAxisAsync(TrafficControlService trafficControl)
+    {
+        var curLoc = Heli.Location;
+        var width = trafficControl.GameBoard.Width;
+        var height = trafficControl.GameBoard.Height;
+        var midx = width / 2;
+        var midy = height / 2;
+        var halfPoints = new List<(int X, int Y)>(){
+            (midx, 0),
+            (midx, height),
+            (0, midy),
+            (width, midy)
+        };
+        var nearestPoint = halfPoints.OrderBy(p => Math.Abs(p.X - curLoc.X) + Math.Abs(p.Y - curLoc.Y)).First();
+        await MoveHeliToPointAsync((nearestPoint.X, nearestPoint.Y));
+    }
+    public void CancelHeli()
+    {
+        HeliCancelSource.Cancel();
+    }
+
     public async Task MoveRoverAsync(Direction direction)
     {
         var res = await client.GetAsync($"/Game/MovePerseverance?token={Token}&direction={direction}");
@@ -160,6 +191,23 @@ public class RoverTeam
         catch { }
     }
 
+
+    public async Task MoveRoverToNearestAxisAsync(TrafficControlService trafficControl)
+    {
+        var curLoc = Rover.Location;
+        var width = trafficControl.GameBoard.Width;
+        var height = trafficControl.GameBoard.Height;
+        var midx = width / 2;
+        var midy = height / 2;
+        var halfPoints = new List<(int X, int Y)>(){
+            (midx, 0),
+            (midx, height),
+            (0, midy),
+            (width, midy)
+        };
+        var nearestPoint = halfPoints.OrderBy(p => Math.Abs(p.X - curLoc.X) + Math.Abs(p.Y - curLoc.Y)).First();
+        await MoveRoverToPointAsync(nearestPoint.X, nearestPoint.Y);
+    }
     public async Task MoveRoverAlongPathAsync(Queue<(int X, int Y)> path)
     {
         while (path.Count > 0)
