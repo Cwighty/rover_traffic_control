@@ -301,7 +301,7 @@ public partial class TrafficControlService
         }
     }
 
-    public void DriveRovers(Func<(int, int), (int, int), int> heuristic = null)
+    public void DriveRovers(Func<(int, int), (int, int), int> heuristic = null, int mapOpt = 20)
     {
         foreach (var team in Teams)
         {
@@ -314,7 +314,7 @@ public partial class TrafficControlService
             foreach (var team in Teams)
             {
                 var map = GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
-                path = PathFinder.FindPath(map, team.Rover.Location, GameBoard.Target, heuristic);
+                path = PathFinder.FindPath(map, team.Rover.Location, GameBoard.Target, heuristic, mapOpt);
                 Thread.Sleep(3000);
                 if (path.Count > 0)
                 {

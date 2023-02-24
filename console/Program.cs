@@ -17,6 +17,8 @@ internal class Program
         public string? Url { get; set; }
         [Option('e', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
         public string? Heuristic { get; set; }
+        [Option('o', "optimization", Required = false, HelpText = "size of map buffer zone for pathfinding")]
+        public int MapOptimizationBuffer { get; set; }
         [Option('q', "quickmode", Required = false, HelpText = "No helis, just go straight to target from nearest midpoint")]
         public bool QuickMode { get; set; }
     }
@@ -52,7 +54,7 @@ internal class Program
         else
         {
             trafficControl.FlyHeliFormation(formation: options.FlightPattern ?? "circle");
-            var t = Task.Run(() => trafficControl.DriveRovers(heuristic));
+            var t = Task.Run(() => trafficControl.DriveRovers(heuristic, options.MapOptimizationBuffer));
         }
 
         while (true)

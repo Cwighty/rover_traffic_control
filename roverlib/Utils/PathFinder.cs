@@ -33,14 +33,19 @@ public class PathFinder
         return map2;
     }
 
-    public static List<(int X, int Y)> FindPath(Dictionary<(int X, int Y), int> map, (int X, int Y) start, (int X, int Y) target, Func<(int, int), (int, int), int> heuristicFunction = null)
+    public static List<(int X, int Y)> FindPath(
+        Dictionary<(int X, int Y), int> map,
+        (int X, int Y) start,
+        (int X, int Y) target,
+        Func<(int, int), (int, int), int> heuristicFunction = null,
+        int mapOptimizationBuffer = 20)
     {
         if (heuristicFunction == null)
         {
             heuristicFunction = ManhattanDistance;
         }
 
-        map = GetSubmap(map, start, target, 20);
+        map = GetSubmap(map, start, target, mapOptimizationBuffer);
 
         // Check if the start and target positions are within the map
         if (!map.ContainsKey(start) || !map.ContainsKey(target))
