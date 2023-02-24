@@ -18,7 +18,6 @@ public partial class TrafficControlService
     {
         this.client = client;
         Teams = new();
-
     }
 
     async Task joinNewGame(string name, string gameid)
@@ -272,10 +271,9 @@ public partial class TrafficControlService
         return $"{letterAdjective}{animal}";
     }
 
-    public void FlyHeliFormation(out CancellationTokenSource source, TrafficControlService tc, string formation = "circle")
+    public void FlyHeliFormation(string formation = "circle")
     {
         CancellationTokenSource cts = new CancellationTokenSource();
-        source = cts;
         var token = cts.Token;
         int numTeams = Teams.Count(); ;
         if (formation == "circle")
@@ -283,7 +281,7 @@ public partial class TrafficControlService
             var tasks = new List<Task>();
             foreach (var team in Teams)
             {
-                var task = team.MoveHeliToNearestAxisAsync(tc);
+                var task = team.MoveHeliToNearestAxisAsync(this);
                 tasks.Add(task);
             }
             Task.WaitAll(tasks.ToArray());
@@ -303,7 +301,34 @@ public partial class TrafficControlService
         }
     }
 
-
+    public void DriveRovers(Func<(int, int), (int, int), int> heuristic = null)
+    {
+        foreach (var team in Teams)
+        {
+            var t = Task.Run(() => team.MoveRoverToNearestAxisAsync(this));
+        }
+        var path = new List<(int, int)>();
+        while (path.Count == 0)
+        {
+            var sent = new List<RoverTeam>();
+            foreach (var team in Teams)
+            {
+                var map = GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
+                path = PathFinder.FindPath(map, team.Rover.Location, GameBoard.Target, heuristic);
+                Thread.Sleep(3000);
+                if (path.Count > 0)
+                {
+                    var pathQueue = path.ToQueue();
+                    pathQueue.Dequeue();
+                    if (!team.HeliCancelSource.IsCancellationRequested)
+                    {
+                        var t = Task.Run(() => team.MoveRoverAlongPathAsync(pathQueue));
+                    }
+                    team.CancelHeli();
+                }
+            }
+        }
+    }
     void breathingCircle(int NUM_TEAMS, (int X, int Y) center, int radius, CancellationToken token)
     {
         var helicircle = HeliPatterns.GenerateCircle(center, radius, NUM_TEAMS);
@@ -335,7 +360,7 @@ public partial class TrafficControlService
             {
                 return;
             }
-            team.MoveHeliToPointAsync(GameBoard.Target);
+            var t = Task.Run(() => team.MoveHeliToPointAsync(GameBoard.Target));
         }
     }
 

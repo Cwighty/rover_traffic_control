@@ -15,7 +15,7 @@ internal class Program
         public string? FlightPattern { get; set; }
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
         public string? Url { get; set; }
-        [Option('h', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
+        [Option('e', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
         public string? Heuristic { get; set; }
         [Option('q', "quickmode", Required = false, HelpText = "No helis, just go straight to target from nearest midpoint")]
         public bool QuickMode { get; set; }
@@ -31,6 +31,13 @@ internal class Program
         };
         int NUM_TEAMS = options.NumTeams > 0 ? options.NumTeams : 10;
         string GAME_ID = options.GameId ?? "a";
+        Func<(int, int), (int, int), int> heuristic = options.Heuristic switch
+        {
+            "manhattan" => PathFinder.ManhattanDistance,
+            "euclidean" => PathFinder.EuclideanDistance,
+            _ => PathFinder.ManhattanDistance
+        };
+
 
         var trafficControl = new TrafficControlService(client);
 
@@ -44,43 +51,12 @@ internal class Program
         }
         else
         {
-            trafficControl.FlyHeliFormation(out var source, trafficControl, formation: options.FlightPattern ?? "circle");
-            var t = Task.Run(() => pathFindRoversAsync(trafficControl, source));
+            trafficControl.FlyHeliFormation(formation: options.FlightPattern ?? "circle");
+            var t = Task.Run(() => trafficControl.DriveRovers(heuristic));
         }
 
         while (true)
         { }
-
-
-
-        static async Task pathFindRoversAsync(TrafficControlService trafficControl, CancellationTokenSource source)
-        {
-            foreach (var team in trafficControl.Teams)
-            {
-                var t = Task.Run(() => team.MoveRoverToNearestAxisAsync(trafficControl));
-            }
-            var path = new List<(int, int)>();
-            while (path.Count == 0)
-            {
-                var sent = new List<RoverTeam>();
-                foreach (var team in trafficControl.Teams)
-                {
-                    var map = trafficControl.GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
-                    path = MapReader.FindPath(map, team.Rover.Location, trafficControl.GameBoard.Target);
-                    Thread.Sleep(3000);
-                    if (path.Count > 0)
-                    {
-                        var pathQueue = path.ToQueue();
-                        pathQueue.Dequeue();
-                        if (!team.HeliCancelSource.IsCancellationRequested)
-                        {
-                            var t = Task.Run(() => team.MoveRoverAlongPathAsync(pathQueue));
-                        }
-                        team.CancelHeli();
-                    }
-                }
-            }
-        }
 
         static async Task easyMoneyAsync(TrafficControlService trafficControl)
         {
