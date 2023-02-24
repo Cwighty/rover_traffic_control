@@ -54,7 +54,7 @@ internal class Program
         else
         {
             trafficControl.FlyHeliFormation(formation: options.FlightPattern ?? "circle");
-            var t = Task.Run(() => trafficControl.DriveRovers(heuristic, options.MapOptimizationBuffer));
+            var t = Task.Run(() => trafficControl.DriveRovers(heuristic, options.MapOptimizationBuffer > 5 ? options.MapOptimizationBuffer : 10));
         }
 
         while (true)
