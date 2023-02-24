@@ -272,60 +272,79 @@ public partial class TrafficControlService
         return $"{letterAdjective}{animal}";
     }
 
-    public void FlyHeliFormation(string formation = "circle")
+    public void FlyHeliFormation(out CancellationTokenSource source, string formation = "circle")
     {
+        CancellationTokenSource cts = new CancellationTokenSource();
+        source = cts;
+        var token = cts.Token;
         int numTeams = Teams.Count(); ;
         if (formation == "circle")
         {
-            Task.Run(() => breathingCircle(numTeams, center, radius));
+            Task.Run(() => breathingCircle(numTeams, center, radius, token));
         }
         else if (formation == "spiral")
         {
-            Task.Run(() => spiral(numTeams, center));
+            Task.Run(() => spiral(numTeams, center, token));
         }
         else if (formation == "clock")
         {
-            Task.Run(() => clockHand(numTeams, center, radius));
+            Task.Run(() => clockHand(numTeams, center, radius, token));
         }
         else if (formation == "target")
         {
-            Task.Run(() => sendHelisToTarget());
+            Task.Run(() => sendHelisToTarget(token));
         }
     }
 
 
-    void breathingCircle(int NUM_TEAMS, (int X, int Y) center, int radius)
+    void breathingCircle(int NUM_TEAMS, (int X, int Y) center, int radius, CancellationToken token)
     {
         var helicircle = HeliPatterns.GenerateCircle(center, radius, NUM_TEAMS);
         var rotation = HeliPatterns.RotateList(helicircle, 0);
         for (int i = 5; i < 100; i++)
         {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
             moveHeliSwarmToPoints(rotation);
             rotation = HeliPatterns.RotateList(rotation, i);
         }
     }
 
-    void sendHelisToTarget()
+    void sendHelisToTarget(CancellationToken token)
     {
         foreach (var team in Teams)
         {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
             team.MoveHeliToPointAsync(GameBoard.Target);
         }
     }
 
-    void clockHand(int NUM_TEAMS, (int X, int Y) center, int radius)
+    void clockHand(int NUM_TEAMS, (int X, int Y) center, int radius, CancellationToken token)
     {
         for (int i = 1; i < 360; i++)
         {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
             var flightPlan = HeliPatterns.GenerateClockHand(center, radius, i, NUM_TEAMS);
             moveHeliSwarmToPoints(flightPlan);
         }
     }
 
-    void spiral(int NUM_TEAMS, (int X, int Y) center)
+    void spiral(int NUM_TEAMS, (int X, int Y) center, CancellationToken token)
     {
         for (int i = 1; i < 360; i += 10)
         {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
             var rotation = HeliPatterns.GeneratePhyllotaxisSpiral(center, i, NUM_TEAMS, distanceBetween: 50);
             moveHeliSwarmToPoints(rotation);
         }
@@ -342,6 +361,7 @@ public partial class TrafficControlService
         }
         try
         {
+
             Task.WaitAll(moveHelis.ToArray());
         }
         catch { }

@@ -100,53 +100,64 @@ public class RoverTeam
     {
         // Find path to point and move heli along it two steps at a time
         var targetLoc = (x, y);
-        if (targetLoc == Heli.Location)
+        if (targetLoc == Rover.Location)
         {
             return;
         }
-        var line = new ParametricLine(Rover.Location, targetLoc);
-        var path = line.GetDiscretePointsAlongLine().ToQueue();
-        while (path.Count > 0)
+        try
         {
-            var next = path.Peek();
-            try
+            var curLoc = Rover.Location;
+            var curOrientation = Rover.Orientation;
+            if (curLoc.Y != targetLoc.y)
             {
-                var curLoc = Rover.Location;
-                var curOrientation = Rover.Orientation;
-                while (curOrientation != Orientation.North)
+                while (curOrientation != Orientation.North && curOrientation != Orientation.South)
                 {
                     await MoveRoverAsync(Direction.Right);
                     curOrientation = Rover.Orientation;
-                }
-                while (curLoc.Y < targetLoc.y)
-                {
-                    await MoveRoverAsync(Direction.Forward);
-                    curLoc = Rover.Location;
-                }
-                while (curLoc.Y > targetLoc.y)
-                {
-                    await MoveRoverAsync(Direction.Reverse);
-                    curLoc = Rover.Location;
-                }
-
-                while (curOrientation != Orientation.East)
-                {
-                    await MoveRoverAsync(Direction.Right);
-                    curOrientation = Rover.Orientation;
-                }
-                while (curLoc.X < targetLoc.x)
-                {
-                    await MoveRoverAsync(Direction.Forward);
-                    curLoc = Rover.Location;
-                }
-                while (curLoc.X > targetLoc.x)
-                {
-                    await MoveRoverAsync(Direction.Reverse);
-                    curLoc = Rover.Location;
                 }
             }
-            catch { }
+            while (curLoc.Y < targetLoc.y)
+            {
+                if (curOrientation == Orientation.North)
+                    await MoveRoverAsync(Direction.Forward);
+                else
+                    await MoveRoverAsync(Direction.Reverse);
+                curLoc = Rover.Location;
+            }
+            while (curLoc.Y > targetLoc.y)
+            {
+                if (curOrientation == Orientation.North)
+                    await MoveRoverAsync(Direction.Reverse);
+                else
+                    await MoveRoverAsync(Direction.Forward);
+                curLoc = Rover.Location;
+            }
+            if (curLoc.X != targetLoc.x)
+            {
+                while (curOrientation != Orientation.East && curOrientation != Orientation.West)
+                {
+                    await MoveRoverAsync(Direction.Right);
+                    curOrientation = Rover.Orientation;
+                }
+            }
+            while (curLoc.X < targetLoc.x)
+            {
+                if (curOrientation == Orientation.East)
+                    await MoveRoverAsync(Direction.Forward);
+                else
+                    await MoveRoverAsync(Direction.Reverse);
+                curLoc = Rover.Location;
+            }
+            while (curLoc.X > targetLoc.x)
+            {
+                if (curOrientation == Orientation.East)
+                    await MoveRoverAsync(Direction.Reverse);
+                else
+                    await MoveRoverAsync(Direction.Forward);
+                curLoc = Rover.Location;
+            }
         }
+        catch { }
     }
 
     public async Task MoveRoverAlongPathAsync(Queue<(int X, int Y)> path)
@@ -157,61 +168,12 @@ public class RoverTeam
             try
             {
                 await MoveRoverToPointAsync(p.X, p.Y);
-                path.Dequeue();
+                if (Rover.Location == (p.X, p.Y))
+                    path.Dequeue();
             }
             catch
             { }
         }
-    }
-
-    public async Task StepRoverTowardPointAsync(int x, int y)
-    {
-        // Find path to point and move heli along it two steps at a time
-        var targetLoc = (x, y);
-        if (targetLoc == Heli.Location)
-        {
-            return;
-        }
-        var line = new ParametricLine(Rover.Location, targetLoc);
-        var path = line.GetDiscretePointsAlongLine().ToQueue();
-        var next = path.Peek();
-        try
-        {
-            var curLoc = Rover.Location;
-            var curOrientation = Rover.Orientation;
-            while (curOrientation != Orientation.North)
-            {
-                await MoveRoverAsync(Direction.Right);
-                curOrientation = Rover.Orientation;
-            }
-            while (curLoc.Y < targetLoc.y)
-            {
-                await MoveRoverAsync(Direction.Forward);
-                curLoc = Rover.Location;
-            }
-            while (curLoc.Y > targetLoc.y)
-            {
-                await MoveRoverAsync(Direction.Reverse);
-                curLoc = Rover.Location;
-            }
-
-            while (curOrientation != Orientation.East)
-            {
-                await MoveRoverAsync(Direction.Right);
-                curOrientation = Rover.Orientation;
-            }
-            while (curLoc.X < targetLoc.x)
-            {
-                await MoveRoverAsync(Direction.Forward);
-                curLoc = Rover.Location;
-            }
-            while (curLoc.X > targetLoc.x)
-            {
-                await MoveRoverAsync(Direction.Reverse);
-                curLoc = Rover.Location;
-            }
-        }
-        catch { }
     }
 
 

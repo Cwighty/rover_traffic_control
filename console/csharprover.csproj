@@ -4,6 +4,10 @@
     <ProjectReference Include="..\roverlib\roverlib.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="OptimizedPriorityQueue" Version="5.1.0" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
