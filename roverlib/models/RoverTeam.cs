@@ -129,7 +129,7 @@ public class RoverTeam
 
     public async Task MoveRoverToPointAsync(int x, int y)
     {
-        // Find path to point and move heli along it two steps at a time
+        // Find path to point and move rover along it two steps at a time
         var targetLoc = (x, y);
         if (targetLoc == Rover.Location)
         {

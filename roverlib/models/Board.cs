@@ -10,12 +10,12 @@ public class Board
         LowResMap = response.lowResolutionMap.ToList();
         Width = response.lowResolutionMap.Max(x => x.upperRightX);
         Height = response.lowResolutionMap.Max(x => x.upperRightY);
-        Target = (response.targetX, response.targetY);
+        Targets = response.targets;
         VisitedNeighbors = new();
     }
     public int Width { get; set; }
     public int Height { get; set; }
-    public (int X, int Y) Target { get; set; }
     public List<LowResolutionMap> LowResMap { get; set; }
     public ConcurrentDictionary<long, Neighbor> VisitedNeighbors { get; set; }
+    public List<(int X, int Y)> Targets { get; internal set; }
 }

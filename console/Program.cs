@@ -32,7 +32,7 @@ internal class Program
             // BaseAddress = new Uri("https://localhost:64793/")
         };
         int NUM_TEAMS = options.NumTeams > 0 ? options.NumTeams : 10;
-        string GAME_ID = options.GameId ?? "a";
+        string GAME_ID = options.GameId ?? "f";
         Func<(int, int), (int, int), int> heuristic = options.Heuristic switch
         {
             "manhattan" => PathFinder.ManhattanDistance,
@@ -72,7 +72,7 @@ internal class Program
             Task.WaitAll(tasks.ToArray());
             foreach (var team in trafficControl.Teams)
             {
-                var t = Task.Run(() => team.MoveRoverToPointAsync(trafficControl.GameBoard.Target.X, trafficControl.GameBoard.Target.Y));
+                var t = Task.Run(() => team.MoveRoverToPointAsync(trafficControl.GameBoard.Targets[0].X, trafficControl.GameBoard.Targets[0].Y));
             }
         }
 
