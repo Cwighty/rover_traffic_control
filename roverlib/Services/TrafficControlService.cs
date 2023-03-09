@@ -7,7 +7,7 @@ public delegate void NotifyNeighborsDelegate(NewNeighborsEventArgs args);
 public partial class TrafficControlService
 {
     private readonly HttpClient client;
-    private (int X, int Y) center;
+    private Location center;
     private int radius;
 
     public List<RoverTeam> Teams { get; set; }
@@ -31,6 +31,7 @@ public partial class TrafficControlService
             var newGame = new RoverTeam(name, gameid, res, client);
             newGame.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
             Teams.Add(newGame);
+            center = GameBoard.Targets[0];
         }
         else
         {
@@ -319,7 +320,7 @@ public partial class TrafficControlService
             {
                 var map = GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
                 var target = GetClosestTarget(team.Rover.Location, GameBoard.Targets);
-                path = PathFinder.FindPath(map, team.Rover.Location, target, heuristic, mapOpt);
+                path = PathFinder.FindPath(map, (team.Rover.Location.X, team.Rover.Location.Y), (target.X, target.Y), heuristic, mapOpt);
                 Thread.Sleep(3000);
                 if (path.Count > 0)
                 {
@@ -335,7 +336,7 @@ public partial class TrafficControlService
         }
     }
 
-    private (int X, int Y) GetClosestTarget((int X, int Y) location, List<(int X, int Y)> targets)
+    private Location GetClosestTarget(Location location, List<Location> targets)
     {
         // get the closes target to the rover
         var target = targets[0];   
@@ -349,16 +350,16 @@ public partial class TrafficControlService
                 target = t;
             }
         }
-        return target;
+        return new Location(target.X, target.Y);
     }
 
-    void breathingCircle(int NUM_TEAMS, (int X, int Y) center, int radius, CancellationToken token)
+    void breathingCircle(int NUM_TEAMS, Location center, int radius, CancellationToken token)
     {
         var helicircle = HeliPatterns.GenerateCircle(center, radius, NUM_TEAMS);
         var rotation = HeliPatterns.RotateList(helicircle, 0);
 
         var target = GetClosestTarget(center, GameBoard.Targets);
-        var startingPoints = new List<(int X, int Y)>();
+        var startingPoints = new List<Location>();
         for (int j = 0; j < Teams.Count(); j++)
         {
             startingPoints.Add(target);
@@ -387,7 +388,7 @@ public partial class TrafficControlService
         }
     }
 
-    void clockHand(int NUM_TEAMS, (int X, int Y) center, int radius, CancellationToken token)
+    void clockHand(int NUM_TEAMS, Location center, int radius, CancellationToken token)
     {
         for (int i = 1; i < 360; i++)
         {
@@ -400,7 +401,7 @@ public partial class TrafficControlService
         }
     }
 
-    void spiral(int NUM_TEAMS, (int X, int Y) center, CancellationToken token)
+    void spiral(int NUM_TEAMS, Location center, CancellationToken token)
     {
         for (int i = 1; i < 360; i += 10)
         {
@@ -412,7 +413,7 @@ public partial class TrafficControlService
             moveHeliSwarmToPoints(rotation);
         }
     }
-    void moveHeliSwarmToPoints(List<(int X, int Y)> flightPattern)
+    void moveHeliSwarmToPoints(List<Location> flightPattern)
     {
         List<Task> moveHelis = new List<Task>();
         for (int i = 0; i < Teams.Count; i++)

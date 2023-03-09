@@ -17,5 +17,5 @@ public class Board
     public int Height { get; set; }
     public List<LowResolutionMap> LowResMap { get; set; }
     public ConcurrentDictionary<long, Neighbor> VisitedNeighbors { get; set; }
-    public List<(int X, int Y)> Targets { get; internal set; }
+    public List<Location> Targets { get; internal set; }
 }

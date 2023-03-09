@@ -6,9 +6,9 @@ public class IngenuityRover
 {
     public IngenuityRover(JoinResponse response)
     {
-        Location = (response.startingX, response.startingY);
+        Location = new Location(response.startingX, response.startingY);
     }
 
-    public (int X, int Y) Location { get; set; }
+    public Location Location { get; set; }
     public int Battery { get; set; }
 }

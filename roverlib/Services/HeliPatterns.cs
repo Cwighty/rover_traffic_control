@@ -1,17 +1,19 @@
+using Roverlib.Models.Responses;
+
 public class HeliPatterns
 {
 
-    public static List<(int X, int Y)> GenerateCircle((int, int) center, int radius, int points)
+    public static List<Location> GenerateCircle(Location center, int radius, int points)
     {
         var circle = new List<(int X, int Y)>();
         for (int i = 0; i < points; i++)
         {
             var angle = (2 * Math.PI / points) * i;
-            var x = (int)(center.Item1 + radius * Math.Cos(angle));
-            var y = (int)(center.Item2 + radius * Math.Sin(angle));
+            var x = (int)(center.X + radius * Math.Cos(angle));
+            var y = (int)(center.Y + radius * Math.Sin(angle));
             circle.Add((x, y));
         }
-        return circle;
+        return circle.Select(p => new Location(p.X, p.Y)).ToList();
     }
 
     public static List<(int x, int y)> GenerateSpiral((int X, int Y) center, int angle, int radius, int numPoints, int distanceBetween)
@@ -33,7 +35,7 @@ public class HeliPatterns
 
 
 
-    public static List<(int X, int Y)> GeneratePhyllotaxisSpiral((int X, int Y) center, int angle, int numPoints, int distanceBetween = 6)
+    public static List<Location> GeneratePhyllotaxisSpiral(Location center, int angle, int numPoints, int distanceBetween = 6)
     {
         //https://www.desmos.com/calculator/risuha09iw
         List<(int X, int Y)> points = new List<(int X, int Y)>();
@@ -52,10 +54,10 @@ public class HeliPatterns
             points.Add((x, y));
         }
 
-        return points;
+        return points.Select(p => new Location(p.X, p.Y)).ToList();
     }
 
-    public static List<(int x, int y)> GenerateClockHand((int X, int Y) center, int radius, int angle, int numPoints)
+    public static List<Location> GenerateClockHand(Location center, int radius, int angle, int numPoints)
     {
         List<(int x, int y)> points = new List<(int x, int y)>();
         double radians = angle * Math.PI / 180.0;
@@ -74,7 +76,7 @@ public class HeliPatterns
             points.Add((x, y));
         }
 
-        return points;
+        return points.Select(p => new Location(p.x, p.y)).ToList();
     }
 
     public static List<(int x, int y)> GenerateTwoArmSpiral((int X, int Y) center, int innerRadius, int outerRadius, int numPoints)
@@ -105,14 +107,14 @@ public class HeliPatterns
     }
 
 
-    public static List<(int X, int Y)> RotateList(List<(int X, int Y)> list, int rotations)
+    public static List<Location> RotateList(List<Location> list, int rotations)
     {
-        var rotated = new List<(int X, int Y)>();
+        var rotated = new List<Location>();
         for (int i = 0; i < list.Count; i++)
         {
             var index = (i + rotations) % list.Count;
             rotated.Add(list[index]);
         }
-        return rotated;
+        return rotated.Select(p => new Location(p.X, p.Y)).ToList();
     }
 }

@@ -9,6 +9,6 @@ public class JoinResponse
     public Neighbor[] neighbors { get; set; }
     public LowResolutionMap[] lowResolutionMap { get; set; }
     public string orientation { get; set; }
-    public List<(int X, int Y)> targets { get; set; }
+    public List<Location> targets { get; set; }
 }
 

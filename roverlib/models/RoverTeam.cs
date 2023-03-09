@@ -40,7 +40,7 @@ public class RoverTeam
             {
                 throw new Exception("Ingenuity cannot fly that far at once.");
             }
-            Heli.Location = (result.X, result.Y);
+            Heli.Location = new Location(result.X, result.Y);
             Heli.Battery = result.batteryLevel;
             updateVisited(result.neighbors);
         }
@@ -55,14 +55,14 @@ public class RoverTeam
             throw new ProblemDetailException(result);
         }
     }
-    public async Task MoveHeliToPointAsync((int X, int Y) point)
+    public async Task MoveHeliToPointAsync(Location point)
     {
         // Find path to point and move heli along it two steps at a time
         if (point == Heli.Location)
         {
             return;
         }
-        var line = new ParametricLine(Heli.Location, point);
+        var line = new ParametricLine((Heli.Location.X, Heli.Location.Y), (point.X, point.Y));
         var path = line.GetDiscretePointsAlongLine().ToQueue();
         while (path.Count > 0)
         {
@@ -98,7 +98,7 @@ public class RoverTeam
             (width, midy)
         };
         var nearestPoint = halfPoints.OrderBy(p => Math.Abs(p.X - curLoc.X) + Math.Abs(p.Y - curLoc.Y)).First();
-        await MoveHeliToPointAsync((nearestPoint.X, nearestPoint.Y));
+        await MoveHeliToPointAsync(new Location(nearestPoint.X, nearestPoint.Y));
     }
     public void CancelHeli()
     {
@@ -111,7 +111,7 @@ public class RoverTeam
         if (res.IsSuccessStatusCode)
         {
             var result = await res.Content.ReadFromJsonAsync<MoveResponse>();
-            Rover.Location = (result.X, result.Y);
+            Rover.Location = new Location(result.X, result.Y);
             Rover.Battery = result.batteryLevel;
             Enum.TryParse<Orientation>(result.orientation, out var orient);
             Rover.Orientation = orient;
@@ -130,7 +130,7 @@ public class RoverTeam
     public async Task MoveRoverToPointAsync(int x, int y)
     {
         // Find path to point and move rover along it two steps at a time
-        var targetLoc = (x, y);
+        var targetLoc = new Location (x, y);
         if (targetLoc == Rover.Location)
         {
             return;
@@ -139,7 +139,7 @@ public class RoverTeam
         {
             var curLoc = Rover.Location;
             var curOrientation = Rover.Orientation;
-            if (curLoc.Y != targetLoc.y)
+            if (curLoc.Y != targetLoc.Y)
             {
                 while (curOrientation != Orientation.North && curOrientation != Orientation.South)
                 {
@@ -147,7 +147,7 @@ public class RoverTeam
                     curOrientation = Rover.Orientation;
                 }
             }
-            while (curLoc.Y < targetLoc.y)
+            while (curLoc.Y < targetLoc.Y)
             {
                 if (curOrientation == Orientation.North)
                     await MoveRoverAsync(Direction.Forward);
@@ -155,7 +155,7 @@ public class RoverTeam
                     await MoveRoverAsync(Direction.Reverse);
                 curLoc = Rover.Location;
             }
-            while (curLoc.Y > targetLoc.y)
+            while (curLoc.Y > targetLoc.Y)
             {
                 if (curOrientation == Orientation.North)
                     await MoveRoverAsync(Direction.Reverse);
@@ -163,7 +163,7 @@ public class RoverTeam
                     await MoveRoverAsync(Direction.Forward);
                 curLoc = Rover.Location;
             }
-            if (curLoc.X != targetLoc.x)
+            if (curLoc.X != targetLoc.X)
             {
                 while (curOrientation != Orientation.East && curOrientation != Orientation.West)
                 {
@@ -171,7 +171,7 @@ public class RoverTeam
                     curOrientation = Rover.Orientation;
                 }
             }
-            while (curLoc.X < targetLoc.x)
+            while (curLoc.X < targetLoc.X)
             {
                 if (curOrientation == Orientation.East)
                     await MoveRoverAsync(Direction.Forward);
@@ -179,7 +179,7 @@ public class RoverTeam
                     await MoveRoverAsync(Direction.Reverse);
                 curLoc = Rover.Location;
             }
-            while (curLoc.X > targetLoc.x)
+            while (curLoc.X > targetLoc.X)
             {
                 if (curOrientation == Orientation.East)
                     await MoveRoverAsync(Direction.Reverse);
@@ -216,7 +216,7 @@ public class RoverTeam
             try
             {
                 await MoveRoverToPointAsync(p.X, p.Y);
-                if (Rover.Location == (p.X, p.Y))
+                if (Rover.Location == new Location(p.X, p.Y))
                     path.Dequeue();
             }
             catch
