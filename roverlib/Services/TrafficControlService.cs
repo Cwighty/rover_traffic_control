@@ -78,7 +78,21 @@ public partial class TrafficControlService
         }
         return GameStatus.Invalid;
     }
+    public void FlyHelisToTargets()
+    {
+        foreach (var team in Teams)
+        {
+           var task = Task.Run(()=> team.FlyHeliToTargets(GameBoard.Targets));
+        }
+    }
 
+    public void DriveRoversToTargets(Func<(int, int), (int, int), int> heuristic, int optBuffer)
+    {
+        foreach (var team in Teams)
+        {
+            var task = Task.Run(() => team.DriveRoverToTargets(GameBoard.VisitedNeighbors, GameBoard.Targets, heuristic, optBuffer));
+        }
+    }
     static string generateRandomName()
     {
         var animals = new HashSet<string>{

@@ -32,7 +32,7 @@ internal class Program
             // BaseAddress = new Uri("https://localhost:64793/")
         };
         int NUM_TEAMS = options.NumTeams > 0 ? options.NumTeams : 10;
-        string GAME_ID = options.GameId ?? "g";
+        string GAME_ID = options.GameId ?? "i";
         Func<(int, int), (int, int), int> heuristic = options.Heuristic switch
         {
             "manhattan" => PathFinder.ManhattanDistance,
@@ -42,9 +42,7 @@ internal class Program
 
 
         var trafficControl = new TrafficControlService(client);
-
         await trafficControl.JoinTeams(NUM_TEAMS, GAME_ID);
-
         await waitForPlayingStatusAsync(trafficControl);
 
         if (options.QuickMode)
@@ -53,8 +51,10 @@ internal class Program
         }
         else
         {
-            trafficControl.FlyHeliFormation(formation: options.FlightPattern ?? "circle");
-            var t = Task.Run(() => trafficControl.DriveRovers(heuristic, options.MapOptimizationBuffer > 5 ? options.MapOptimizationBuffer : 10));
+            var optBuffer = options.MapOptimizationBuffer > 5 ? options.MapOptimizationBuffer : 10;
+            trafficControl.FlyHelisToTargets();
+            trafficControl.DriveRoversToTargets(heuristic, optBuffer);
+            //var t = Task.Run(() => trafficControl.DriveRovers(heuristic, options.MapOptimizationBuffer > 5 ? options.MapOptimizationBuffer : 10));
         }
 
         while (true)

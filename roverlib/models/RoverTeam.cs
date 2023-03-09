@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using System.Collections.Concurrent;
+using System.Net.Http.Json;
 using Roverlib.Models.Responses;
 using Roverlib.Services;
 using Roverlib.Utils;
@@ -216,7 +217,7 @@ public class RoverTeam
             try
             {
                 await MoveRoverToPointAsync(p.X, p.Y);
-                if (Rover.Location == new Location(p.X, p.Y))
+                if ((Rover.Location.X == p.X && Rover.Location.Y == p.Y))
                     path.Dequeue();
             }
             catch
@@ -224,12 +225,62 @@ public class RoverTeam
         }
     }
 
-
     private void updateVisited(IEnumerable<Neighbor> neighbors)
     {
         if (NotifyGameManager != null)
         {
             NotifyGameManager(new NewNeighborsEventArgs(neighbors));
         }
+    }
+
+    public async Task FlyHeliToTargets(List<Location> targets)
+    {
+        var localTargets = new List<Location>(targets);
+        if (localTargets.Count == 0)
+        {
+            CancelHeli();
+            return;
+        }
+        var target = getNearestTarget(Heli.Location, localTargets);
+        localTargets.Remove(target);
+        var task = MoveHeliToPointAsync(target);
+        await task.ContinueWith(async (t) =>
+        {
+             await FlyHeliToTargets(localTargets);
+        });
+    }
+
+    private Location getNearestTarget(Location currentLocation, List<Location> targets)
+    {
+        var nearest = targets.OrderBy(t => Math.Abs(t.X - currentLocation.X) + Math.Abs(t.Y - currentLocation.Y)).First();
+        return nearest;
+    }
+
+    public void DriveRoverToTargets(ConcurrentDictionary<long, Neighbor> map, List<Location> targets, Func<(int, int), (int, int), int> heuristic = null, int optBuffer = 20)
+    {
+        var localTargets = new List<Location>(targets);
+        if (localTargets.Count == 0)
+        {
+            return;
+        }
+        var target = getNearestTarget(Rover.Location, localTargets);
+        localTargets.Remove(target);
+        var task = DriveRoverToPointAsync(map, target, heuristic, optBuffer);
+        task.ContinueWith((t) =>
+        {
+            DriveRoverToTargets(map, localTargets, heuristic, optBuffer);
+        });
+    }
+
+    private async Task DriveRoverToPointAsync(ConcurrentDictionary<long, Neighbor> map, Location target, Func<(int, int), (int, int), int> heuristic, int optBuffer)
+    {
+        var path = new List<(int, int)>();
+        while (path.Count == 0)
+        {
+            Thread.Sleep(3000);
+            var m = map.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
+            path = PathFinder.FindPath(m, (Rover.Location.X, Rover.Location.Y), (target.X, target.Y), heuristic, optBuffer);
+        }
+        await MoveRoverAlongPathAsync(path.ToQueue());
     }
 }
