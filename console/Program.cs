@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using Roverlib.Models;
 using Roverlib.Services;
 
 internal class Program
@@ -17,7 +18,7 @@ internal class Program
         public string Heuristic { get; set; } = "manhattan";
         [Option('o', "optimization", Required = false, HelpText = "size of map buffer zone for pathfinding")]
         public int MapOptimizationBuffer { get; set; } = 20;
-        [Option('q', "quickmode", Required = false, HelpText = "No helis, just go straight to target from nearest midpoint")]
+        [Option('q', "quickmode", Required = false, HelpText = "No helis, for when battery doesnt matter.")]
         public bool QuickMode { get; set; } = false;
     }
     private static async Task Main(string[] args)
@@ -39,10 +40,16 @@ internal class Program
         var trafficControl = new TrafficControlService(client);
         await trafficControl.JoinTeams(options.NumTeams, options.GameId);
         await waitForPlayingStatusAsync(trafficControl);
-
-        trafficControl.FlyHelisToTargets();
-        trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
-
+        if (options.QuickMode)
+        {
+            trafficControl.GameBoard.VisitedNeighbors = Board.InitializeMap(trafficControl.GameBoard.LowResMap);
+            trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
+        }
+        else
+        {
+            trafficControl.FlyHelisToTargets();
+            trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
+        }
         while (true)
         { }
     }
