@@ -89,6 +89,153 @@ public partial class TrafficControlService
             var task = Task.Run(() => team.Rover.DriveToTargets(GameBoard.VisitedNeighbors, GameBoard.Targets, heuristic, optBuffer));
         }
     }
+
+
+    public void FlyHeliFormation(string formation = "circle")
+    {
+        CancellationTokenSource cts = new CancellationTokenSource();
+        var token = cts.Token;
+        int numTeams = Teams.Count(); ;
+        if (formation == "circle")
+        {
+            var tasks = new List<Task>();
+            foreach (var team in Teams)
+            {
+                var task = team.Heli.FlyToNearestAxisAsync(this);
+                tasks.Add(task);
+            }
+            try
+            {
+
+                Task.WaitAll(tasks.ToArray());
+            }
+            catch { }
+            Task.Run(() => breathingCircle(numTeams, center, radius, token));
+        }
+        else if (formation == "spiral")
+        {
+            Task.Run(() => spiral(numTeams, center, token));
+        }
+        else if (formation == "clock")
+        {
+            Task.Run(() => clockHand(numTeams, center, radius, token));
+        }
+        else if (formation == "target")
+        {
+            Task.Run(() => sendHelisToTarget(token));
+        }
+    }
+
+    public void DriveRovers(Func<(int, int), (int, int), int> heuristic = null, int mapOpt = 20)
+    {
+        foreach (var team in Teams)
+        {
+            var t = Task.Run(() => team.Rover.DriveToNearestAxisAsync(this));
+        }
+        var path = new List<(int, int)>();
+        while (path.Count == 0)
+        {
+            var sent = new List<RoverTeam>();
+            foreach (var team in Teams)
+            {
+                var map = GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
+                var target = PathFinder.GetNearestTarget(team.Rover.Location, GameBoard.Targets);
+                path = PathFinder.FindPath(map, (team.Rover.Location.X, team.Rover.Location.Y), (target.X, target.Y), heuristic, mapOpt);
+                Thread.Sleep(3000);
+                if (path.Count > 0)
+                {
+                    var pathQueue = path.ToQueue();
+                    pathQueue.Dequeue();
+                    if (!team.Heli.CancelSource.IsCancellationRequested)
+                    {
+                        var t = Task.Run(() => team.Rover.DriveAlongPathAsync(pathQueue));
+                    }
+                    team.Heli.CancelFlight();
+                }
+            }
+        }
+    }
+
+    void breathingCircle(int NUM_TEAMS, Location center, int radius, CancellationToken token)
+    {
+        var helicircle = HeliPatterns.GenerateCircle(center, radius, NUM_TEAMS);
+        var rotation = HeliPatterns.RotateList(helicircle, 0);
+
+        var target = PathFinder.GetNearestTarget(center, GameBoard.Targets);
+        var startingPoints = new List<Location>();
+        for (int j = 0; j < Teams.Count(); j++)
+        {
+            startingPoints.Add(target);
+        }
+        moveHeliSwarmToPoints(startingPoints);
+        for (int i = 5; i < 100; i++)
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            moveHeliSwarmToPoints(rotation);
+            rotation = HeliPatterns.RotateList(rotation, i);
+        }
+    }
+
+    void sendHelisToTarget(CancellationToken token)
+    {
+        foreach (var team in Teams)
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            var t = Task.Run(() => team.Heli.MoveToPointAsync(GameBoard.Targets[0]));
+        }
+    }
+
+    void clockHand(int NUM_TEAMS, Location center, int radius, CancellationToken token)
+    {
+        for (int i = 1; i < 360; i++)
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            var flightPlan = HeliPatterns.GenerateClockHand(center, radius, i, NUM_TEAMS);
+            moveHeliSwarmToPoints(flightPlan);
+        }
+    }
+
+    void spiral(int NUM_TEAMS, Location center, CancellationToken token)
+    {
+        for (int i = 1; i < 360; i += 10)
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            var rotation = HeliPatterns.GeneratePhyllotaxisSpiral(center, i, NUM_TEAMS, distanceBetween: 50);
+            moveHeliSwarmToPoints(rotation);
+        }
+    }
+    void moveHeliSwarmToPoints(List<Location> flightPattern)
+    {
+        List<Task> moveHelis = new List<Task>();
+        for (int i = 0; i < Teams.Count; i++)
+        {
+            var team = Teams[i];
+            var circlePos = flightPattern[i];
+            if (!team.Heli.CancelSource.IsCancellationRequested)
+            {
+                var task = team.Heli.MoveToPointAsync(circlePos);
+                moveHelis.Add(task);
+            }
+        }
+        try
+        {
+
+            Task.WaitAll(moveHelis.ToArray());
+        }
+        catch { }
+    }
     static string generateRandomName()
     {
         var animals = new HashSet<string>{
@@ -279,152 +426,6 @@ public partial class TrafficControlService
         var animal = animals.ElementAt(random.Next(animals.Count));
         var letterAdjective = letterAdjectives.ElementAt(random.Next(letterAdjectives.Count));
         return $"{letterAdjective}{animal}";
-    }
-
-    public void FlyHeliFormation(string formation = "circle")
-    {
-        CancellationTokenSource cts = new CancellationTokenSource();
-        var token = cts.Token;
-        int numTeams = Teams.Count(); ;
-        if (formation == "circle")
-        {
-            var tasks = new List<Task>();
-            foreach (var team in Teams)
-            {
-                var task = team.Heli.FlyToNearestAxisAsync(this);
-                tasks.Add(task);
-            }
-            try
-            {
-
-                Task.WaitAll(tasks.ToArray());
-            }
-            catch { }
-            Task.Run(() => breathingCircle(numTeams, center, radius, token));
-        }
-        else if (formation == "spiral")
-        {
-            Task.Run(() => spiral(numTeams, center, token));
-        }
-        else if (formation == "clock")
-        {
-            Task.Run(() => clockHand(numTeams, center, radius, token));
-        }
-        else if (formation == "target")
-        {
-            Task.Run(() => sendHelisToTarget(token));
-        }
-    }
-
-    public void DriveRovers(Func<(int, int), (int, int), int> heuristic = null, int mapOpt = 20)
-    {
-        foreach (var team in Teams)
-        {
-            var t = Task.Run(() => team.Rover.DriveToNearestAxisAsync(this));
-        }
-        var path = new List<(int, int)>();
-        while (path.Count == 0)
-        {
-            var sent = new List<RoverTeam>();
-            foreach (var team in Teams)
-            {
-                var map = GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
-                var target = PathFinder.GetNearestTarget(team.Rover.Location, GameBoard.Targets);
-                path = PathFinder.FindPath(map, (team.Rover.Location.X, team.Rover.Location.Y), (target.X, target.Y), heuristic, mapOpt);
-                Thread.Sleep(3000);
-                if (path.Count > 0)
-                {
-                    var pathQueue = path.ToQueue();
-                    pathQueue.Dequeue();
-                    if (!team.Heli.CancelSource.IsCancellationRequested)
-                    {
-                        var t = Task.Run(() => team.Rover.DriveAlongPathAsync(pathQueue));
-                    }
-                    team.Heli.CancelFlight();
-                }
-            }
-        }
-    }
-
-    void breathingCircle(int NUM_TEAMS, Location center, int radius, CancellationToken token)
-    {
-        var helicircle = HeliPatterns.GenerateCircle(center, radius, NUM_TEAMS);
-        var rotation = HeliPatterns.RotateList(helicircle, 0);
-
-        var target = PathFinder.GetNearestTarget(center, GameBoard.Targets);
-        var startingPoints = new List<Location>();
-        for (int j = 0; j < Teams.Count(); j++)
-        {
-            startingPoints.Add(target);
-        }
-        moveHeliSwarmToPoints(startingPoints);
-        for (int i = 5; i < 100; i++)
-        {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-            moveHeliSwarmToPoints(rotation);
-            rotation = HeliPatterns.RotateList(rotation, i);
-        }
-    }
-
-    void sendHelisToTarget(CancellationToken token)
-    {
-        foreach (var team in Teams)
-        {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-            var t = Task.Run(() => team.Heli.MoveToPointAsync(GameBoard.Targets[0]));
-        }
-    }
-
-    void clockHand(int NUM_TEAMS, Location center, int radius, CancellationToken token)
-    {
-        for (int i = 1; i < 360; i++)
-        {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-            var flightPlan = HeliPatterns.GenerateClockHand(center, radius, i, NUM_TEAMS);
-            moveHeliSwarmToPoints(flightPlan);
-        }
-    }
-
-    void spiral(int NUM_TEAMS, Location center, CancellationToken token)
-    {
-        for (int i = 1; i < 360; i += 10)
-        {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-            var rotation = HeliPatterns.GeneratePhyllotaxisSpiral(center, i, NUM_TEAMS, distanceBetween: 50);
-            moveHeliSwarmToPoints(rotation);
-        }
-    }
-    void moveHeliSwarmToPoints(List<Location> flightPattern)
-    {
-        List<Task> moveHelis = new List<Task>();
-        for (int i = 0; i < Teams.Count; i++)
-        {
-            var team = Teams[i];
-            var circlePos = flightPattern[i];
-            if (!team.Heli.CancelSource.IsCancellationRequested)
-            {
-                var task = team.Heli.MoveToPointAsync(circlePos);
-                moveHelis.Add(task);
-            }
-        }
-        try
-        {
-
-            Task.WaitAll(moveHelis.ToArray());
-        }
-        catch { }
     }
 }
 
