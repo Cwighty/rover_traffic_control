@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using Newtonsoft.Json;
 using Priority_Queue;
+using Roverlib.Models.Responses;
+
 public class PathFinder
 {
     private class Node : IComparable<Node>
@@ -142,6 +144,12 @@ public class PathFinder
         }
 
         return submapData;
+    }
+
+    public static Location GetNearestTarget(Location currentLocation, List<Location> targets)
+    {
+        var nearest = targets.OrderBy(t => Math.Abs(t.X - currentLocation.X) + Math.Abs(t.Y - currentLocation.Y)).First();
+        return nearest;
     }
     public static (int X, int Y) FindBestStart(int[,] map, (int X, int Y) target)
     {

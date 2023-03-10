@@ -9,18 +9,15 @@ public partial class TrafficControlService
     private readonly HttpClient client;
     private Location center;
     private int radius;
-
     public List<RoverTeam> Teams { get; set; }
     public Board GameBoard { get; set; }
-
-
     public TrafficControlService(HttpClient client)
     {
         this.client = client;
         Teams = new();
     }
 
-    async Task joinNewGame(string name, string gameid)
+    private async Task joinNewGame(string name, string gameid)
     {
         var result = await client.GetAsync($"/Game/Join?gameId={gameid}&name={generateRandomName()}");
         if (result.IsSuccessStatusCode)
@@ -39,7 +36,6 @@ public partial class TrafficControlService
             throw new ProblemDetailException(res);
         }
     }
-
 
     public async Task JoinTeams(int numTeams, string gameId)
     {
@@ -82,7 +78,7 @@ public partial class TrafficControlService
     {
         foreach (var team in Teams)
         {
-           var task = Task.Run(()=> team.FlyHeliToTargets(GameBoard.Targets));
+            var task = Task.Run(() => team.Heli.FlyToTargets(GameBoard.Targets));
         }
     }
 
@@ -90,7 +86,7 @@ public partial class TrafficControlService
     {
         foreach (var team in Teams)
         {
-            var task = Task.Run(() => team.DriveRoverToTargets(GameBoard.VisitedNeighbors, GameBoard.Targets, heuristic, optBuffer));
+            var task = Task.Run(() => team.Rover.DriveToTargets(GameBoard.VisitedNeighbors, GameBoard.Targets, heuristic, optBuffer));
         }
     }
     static string generateRandomName()
@@ -295,7 +291,7 @@ public partial class TrafficControlService
             var tasks = new List<Task>();
             foreach (var team in Teams)
             {
-                var task = team.MoveHeliToNearestAxisAsync(this);
+                var task = team.Heli.FlyToNearestAxisAsync(this);
                 tasks.Add(task);
             }
             try
@@ -324,7 +320,7 @@ public partial class TrafficControlService
     {
         foreach (var team in Teams)
         {
-            var t = Task.Run(() => team.MoveRoverToNearestAxisAsync(this));
+            var t = Task.Run(() => team.Rover.DriveToNearestAxisAsync(this));
         }
         var path = new List<(int, int)>();
         while (path.Count == 0)
@@ -340,11 +336,11 @@ public partial class TrafficControlService
                 {
                     var pathQueue = path.ToQueue();
                     pathQueue.Dequeue();
-                    if (!team.HeliCancelSource.IsCancellationRequested)
+                    if (!team.Heli.CancelSource.IsCancellationRequested)
                     {
-                        var t = Task.Run(() => team.MoveRoverAlongPathAsync(pathQueue));
+                        var t = Task.Run(() => team.Rover.DriveAlongPathAsync(pathQueue));
                     }
-                    team.CancelHeli();
+                    team.Heli.CancelFlight();
                 }
             }
         }
@@ -353,7 +349,7 @@ public partial class TrafficControlService
     private Location GetClosestTarget(Location location, List<Location> targets)
     {
         // get the closes target to the rover
-        var target = targets[0];   
+        var target = targets[0];
         var minDistance = Math.Abs(location.X - target.X) + Math.Abs(location.Y - target.Y);
         foreach (var t in targets)
         {
@@ -398,7 +394,7 @@ public partial class TrafficControlService
             {
                 return;
             }
-            var t = Task.Run(() => team.MoveHeliToPointAsync(GameBoard.Targets[0]));
+            var t = Task.Run(() => team.Heli.MoveToPointAsync(GameBoard.Targets[0]));
         }
     }
 
@@ -434,9 +430,9 @@ public partial class TrafficControlService
         {
             var team = Teams[i];
             var circlePos = flightPattern[i];
-            if (!team.HeliCancelSource.IsCancellationRequested)
+            if (!team.Heli.CancelSource.IsCancellationRequested)
             {
-                var task = team.MoveHeliToPointAsync(circlePos);
+                var task = team.Heli.MoveToPointAsync(circlePos);
                 moveHelis.Add(task);
             }
         }
