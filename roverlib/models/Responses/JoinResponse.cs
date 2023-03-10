@@ -1,6 +1,5 @@
 ﻿namespace Roverlib.Models.Responses;
 
-
 public class JoinResponse
 {
     public string token { get; set; }

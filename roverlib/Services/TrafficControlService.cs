@@ -7,7 +7,7 @@ public delegate void NotifyNeighborsDelegate(NewNeighborsEventArgs args);
 public partial class TrafficControlService
 {
     private readonly HttpClient client;
-    private Location center;
+    private Location center = new(0, 0);
     private int radius;
     public List<RoverTeam> Teams { get; set; }
     public Board GameBoard { get; set; }
@@ -329,7 +329,7 @@ public partial class TrafficControlService
             foreach (var team in Teams)
             {
                 var map = GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
-                var target = GetClosestTarget(team.Rover.Location, GameBoard.Targets);
+                var target = PathFinder.GetNearestTarget(team.Rover.Location, GameBoard.Targets);
                 path = PathFinder.FindPath(map, (team.Rover.Location.X, team.Rover.Location.Y), (target.X, target.Y), heuristic, mapOpt);
                 Thread.Sleep(3000);
                 if (path.Count > 0)
@@ -346,29 +346,12 @@ public partial class TrafficControlService
         }
     }
 
-    private Location GetClosestTarget(Location location, List<Location> targets)
-    {
-        // get the closes target to the rover
-        var target = targets[0];
-        var minDistance = Math.Abs(location.X - target.X) + Math.Abs(location.Y - target.Y);
-        foreach (var t in targets)
-        {
-            var distance = Math.Abs(location.X - t.X) + Math.Abs(location.Y - t.Y);
-            if (distance < minDistance)
-            {
-                minDistance = distance;
-                target = t;
-            }
-        }
-        return new Location(target.X, target.Y);
-    }
-
     void breathingCircle(int NUM_TEAMS, Location center, int radius, CancellationToken token)
     {
         var helicircle = HeliPatterns.GenerateCircle(center, radius, NUM_TEAMS);
         var rotation = HeliPatterns.RotateList(helicircle, 0);
 
-        var target = GetClosestTarget(center, GameBoard.Targets);
+        var target = PathFinder.GetNearestTarget(center, GameBoard.Targets);
         var startingPoints = new List<Location>();
         for (int j = 0; j < Teams.Count(); j++)
         {

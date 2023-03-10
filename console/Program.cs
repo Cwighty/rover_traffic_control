@@ -1,26 +1,24 @@
 ﻿using CommandLine;
-using Roverlib.Models;
 using Roverlib.Services;
-using Roverlib.Utils;
 
 internal class Program
 {
     public class Options
     {
         [Option('t', "teams", Required = false, HelpText = "Number of teams to join")]
-        public int NumTeams { get; set; }
+        public int NumTeams { get; set; } = 10;
         [Option('g', "game", Required = false, HelpText = "Game ID")]
-        public string? GameId { get; set; }
+        public string GameId { get; set; } = "j";
         [Option('f', "flight", Required = false, HelpText = "Flight pattern (circle, target, spiral, clock))")]
-        public string? FlightPattern { get; set; }
+        public string? FlightPattern { get; set; } = "circle";
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
-        public string? Url { get; set; }
+        public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
         [Option('e', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
-        public string? Heuristic { get; set; }
+        public string Heuristic { get; set; } = "manhattan";
         [Option('o', "optimization", Required = false, HelpText = "size of map buffer zone for pathfinding")]
-        public int MapOptimizationBuffer { get; set; }
+        public int MapOptimizationBuffer { get; set; } = 20;
         [Option('q', "quickmode", Required = false, HelpText = "No helis, just go straight to target from nearest midpoint")]
-        public bool QuickMode { get; set; }
+        public bool QuickMode { get; set; } = false;
     }
     private static async Task Main(string[] args)
     {
@@ -28,11 +26,9 @@ internal class Program
 
         HttpClient client = new HttpClient()
         {
-            BaseAddress = new Uri(options.Url ?? "https://snow-rover.azurewebsites.net/")
-            // BaseAddress = new Uri("https://localhost:64793/")
+            BaseAddress = new Uri(options.Url)
         };
-        int NUM_TEAMS = options.NumTeams > 0 ? options.NumTeams : 10;
-        string GAME_ID = options.GameId ?? "j";
+
         Func<(int, int), (int, int), int> heuristic = options.Heuristic switch
         {
             "manhattan" => PathFinder.ManhattanDistance,
@@ -40,45 +36,18 @@ internal class Program
             _ => PathFinder.ManhattanDistance
         };
 
-
         var trafficControl = new TrafficControlService(client);
-        await trafficControl.JoinTeams(NUM_TEAMS, GAME_ID);
+        await trafficControl.JoinTeams(options.NumTeams, options.GameId);
         await waitForPlayingStatusAsync(trafficControl);
 
-        if (options.QuickMode)
-        {
-            // var t = Task.Run(() => easyMoneyAsync(trafficControl));
-        }
-        else
-        {
-            var optBuffer = options.MapOptimizationBuffer > 5 ? options.MapOptimizationBuffer : 10;
-            trafficControl.FlyHelisToTargets();
-            trafficControl.DriveRoversToTargets(heuristic, optBuffer);
-            //var t = Task.Run(() => trafficControl.DriveRovers(heuristic, options.MapOptimizationBuffer > 5 ? options.MapOptimizationBuffer : 10));
-        }
+        trafficControl.FlyHelisToTargets();
+        trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
 
         while (true)
         { }
-
-        // static async Task easyMoneyAsync(TrafficControlService trafficControl)
-        // {
-        //     var tasks = new List<Task>();
-        //     foreach (var team in trafficControl.Teams)
-        //     {
-        //         //team.MoveRoverToPointAsync(trafficControl.GameBoard.Target.X, trafficControl.GameBoard.Target.Y);
-        //         var task = team.MoveRoverToNearestAxisAsync(trafficControl);
-        //         tasks.Add(task);
-        //     }
-        //     Task.WaitAll(tasks.ToArray());
-        //     foreach (var team in trafficControl.Teams)
-        //     {
-        //         var t = Task.Run(() => team.MoveRoverToPointAsync(trafficControl.GameBoard.Targets[0].X, trafficControl.GameBoard.Targets[0].Y));
-        //     }
-        // }
-
-        static async Task waitForPlayingStatusAsync(TrafficControlService trafficControl)
-        {
-            while (await trafficControl.CheckStatus() != TrafficControlService.GameStatus.Playing) ;
-        }
+    }
+    private static async Task waitForPlayingStatusAsync(TrafficControlService trafficControl)
+    {
+        while (await trafficControl.CheckStatus() != TrafficControlService.GameStatus.Playing) ;
     }
 }

@@ -7,9 +7,6 @@ internal class ProblemDetailException : Exception
 {
     public ProblemDetail Problem { get; set; }
 
-    public ProblemDetailException()
-    {
-    }
 
     public ProblemDetailException(ProblemDetail problem)
     {
