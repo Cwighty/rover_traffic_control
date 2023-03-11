@@ -147,7 +147,7 @@ public class PerserveranceRover
         var path = new List<(int, int)>();
         while (path.Count == 0)
         {
-            Thread.Sleep(3000);
+            Thread.Sleep(500);
             var m = map.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
             path = PathFinder.FindPath(m, (Location.X, Location.Y), (target.X, target.Y), heuristic, optBuffer);
         }

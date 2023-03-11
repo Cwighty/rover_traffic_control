@@ -23,6 +23,8 @@ public class IngenuityRover
     public CancellationTokenSource CancelSource { get; private set; }
     public Location Location { get; set; }
 
+    private static List<Location> reachedTargets = new();
+
     public async Task MoveAsync(int X, int Y)
     {
         var res = await client.GetAsync($"/Game/MoveIngenuity?token={token}&destinationRow={X}&destinationColumn={Y}");
@@ -60,8 +62,15 @@ public class IngenuityRover
         var target = PathFinder.GetNearestTarget(Location, localTargets);
         localTargets.Remove(target);
         var task = MoveToPointAsync(target);
+
         await task.ContinueWith(async (t) =>
         {
+            if (!reachedTargets.Contains(target) && localTargets.Count > 0)
+            { // Shut off the first heli to reach the target to save rate limiting for frontrunners
+                reachedTargets.Add(target);
+                Console.WriteLine($"Heli {token} reached target {target.X}, {target.Y}");
+                CancelFlight();
+            }
             await FlyToTargets(localTargets);
         });
     }
