@@ -39,19 +39,34 @@ internal class Program
 
         var trafficControl = new TrafficControlService(client);
         await trafficControl.JoinTeams(options.NumTeams, options.GameId);
+        var filePath = $"/maps/{MapHelper.GetFileNameFromMap(trafficControl.GameBoard.LowResMap)}";
         await waitForPlayingStatusAsync(trafficControl);
         if (options.QuickMode)
         {
-            trafficControl.GameBoard.VisitedNeighbors = Board.InitializeMap(trafficControl.GameBoard.LowResMap);
+            trafficControl.GameBoard.VisitedNeighbors = MapHelper.InitializeDefaultMap(trafficControl.GameBoard.LowResMap);
             trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
         }
         else
         {
-            trafficControl.FlyHelisToTargets();
+            // get the file path
+            // check if the file exists
+            if (File.Exists(filePath))
+            {
+                // read the map from the file
+                trafficControl.GameBoard.VisitedNeighbors = MapHelper.ReadMapFromCSV(filePath);
+            }
+            else
+            {
+                // create the map from the low resolution map
+                trafficControl.FlyHelisToTargets();
+            }
             trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
         }
         while (true)
-        { }
+        {
+            await Task.Delay(1000);
+            MapHelper.WriteMapToCSV(trafficControl.GameBoard.VisitedNeighbors, filePath);
+        }
     }
     private static async Task waitForPlayingStatusAsync(TrafficControlService trafficControl)
     {
