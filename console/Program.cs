@@ -9,12 +9,12 @@ internal class Program
         [Option('t', "teams", Required = false, HelpText = "Number of teams to join")]
         public int NumTeams { get; set; } = 10;
         [Option('g', "game", Required = false, HelpText = "Game ID")]
-        public string GameId { get; set; } = "p";
+        public string GameId { get; set; } = "a";
         [Option('f', "flight", Required = false, HelpText = "Flight pattern (circle, target, spiral, clock))")]
         public string? FlightPattern { get; set; } = "circle";
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
-        public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
-        //public string Url { get; set; } = "https://localhost:54259/";
+        //public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
+        public string Url { get; set; } = "https://localhost:58654/";
         [Option('e', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
         public string Heuristic { get; set; } = "manhattan";
         [Option('o', "optimization", Required = false, HelpText = "size of map buffer zone for pathfinding")]
@@ -60,6 +60,7 @@ internal class Program
             {
                 // create the map from the low resolution map
                 trafficControl.FlyHelisToTargets();
+                var task = Task.Run(()=>trafficControl.FlyHeliReconMission()); 
             }
             trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
         }

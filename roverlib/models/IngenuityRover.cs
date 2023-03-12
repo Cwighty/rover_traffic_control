@@ -75,6 +75,23 @@ public class IngenuityRover
         });
     }
 
+    public async Task FlyToReconPoints(List<Location> targets)
+    {
+        if (targets.Count == 0)
+        {
+            CancelFlight();
+            return;
+        }
+        var target = PathFinder.GetNearestTarget(Location, targets);
+        targets.Remove(target);
+        var task = MoveToPointAsync(target);
+
+        await task.ContinueWith(async (t) =>
+        {
+            await FlyToReconPoints(targets);
+        });
+    }
+
     public async Task MoveToPointAsync(Location point)
     {
         // Find path to point and move heli along it two steps at a time

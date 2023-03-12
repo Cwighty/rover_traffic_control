@@ -17,9 +17,9 @@ public partial class TrafficControlService
         Teams = new();
     }
 
-    private async Task joinNewGame(string name, string gameid)
+    private async Task<RoverTeam> joinNewGame(string? name, string gameid)
     {
-        var result = await client.GetAsync($"/Game/Join?gameId={gameid}&name={generateRandomName()}");
+        var result = await client.GetAsync($"/Game/Join?gameId={gameid}&name={name ?? generateRandomName()}");
         if (result.IsSuccessStatusCode)
         {
             var res = await result.Content.ReadFromJsonAsync<JoinResponse>();
@@ -27,8 +27,8 @@ public partial class TrafficControlService
                 GameBoard = new Board(res);
             var newGame = new RoverTeam(name, gameid, res, client);
             newGame.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
-            Teams.Add(newGame);
             center = GameBoard.Targets[0];
+            return newGame;
         }
         else
         {
@@ -37,11 +37,13 @@ public partial class TrafficControlService
         }
     }
 
-    public async Task JoinTeams(int numTeams, string gameId)
+    public async Task JoinTeams(int numTeams, string gameId, string? name = null)
     {
+        var roverTeams = new List<RoverTeam>();
         for (int i = 0; i < numTeams; i++)
         {
-            await joinNewGame($"{i}", gameId);
+            var team = await joinNewGame(name, gameId);
+            Teams.Add(team);
         }
         radius = Math.Min(GameBoard.Width / 2, GameBoard.Height / 2);
     }
@@ -167,14 +169,14 @@ public partial class TrafficControlService
         {
             startingPoints.Add(target);
         }
-        moveHeliSwarmToPoints(startingPoints);
+        moveHeliSwarmToPoints(Teams, startingPoints);
         for (int i = 5; i < 100; i++)
         {
             if (token.IsCancellationRequested)
             {
                 return;
             }
-            moveHeliSwarmToPoints(rotation);
+            moveHeliSwarmToPoints(Teams, rotation);
             rotation = HeliPatterns.RotateList(rotation, i);
         }
     }
@@ -200,7 +202,7 @@ public partial class TrafficControlService
                 return;
             }
             var flightPlan = HeliPatterns.GenerateClockHand(center, radius, i, NUM_TEAMS);
-            moveHeliSwarmToPoints(flightPlan);
+            moveHeliSwarmToPoints(Teams, flightPlan);
         }
     }
 
@@ -213,15 +215,15 @@ public partial class TrafficControlService
                 return;
             }
             var rotation = HeliPatterns.GeneratePhyllotaxisSpiral(center, i, NUM_TEAMS, distanceBetween: 50);
-            moveHeliSwarmToPoints(rotation);
+            moveHeliSwarmToPoints(Teams, rotation);
         }
     }
-    void moveHeliSwarmToPoints(List<Location> flightPattern)
+    void moveHeliSwarmToPoints(List<RoverTeam> teams, List<Location> flightPattern)
     {
         List<Task> moveHelis = new List<Task>();
-        for (int i = 0; i < Teams.Count; i++)
+        for (int i = 0; i < teams.Count; i++)
         {
-            var team = Teams[i];
+            var team = teams[i];
             var circlePos = flightPattern[i];
             if (!team.Heli.CancelSource.IsCancellationRequested)
             {
@@ -431,6 +433,86 @@ public partial class TrafficControlService
         return $"{letterAdjective}{animal}";
     }
 
+    public async Task FlyHeliReconMission()
+    {
+        var helis = await JoinReconHelis(20);
+        var src = new CancellationTokenSource();
+        HeliScan(helis, src.Token);
+    }
+
+    private async Task<List<RoverTeam>> JoinReconHelis(int numHelis)
+    {
+        Thread.Sleep(1);
+        var roverTeams = new List<RoverTeam>();
+        for (int i = 0; i < numHelis; i++)
+        {
+            var team = await joinNewGame($"Recon{i}", Teams.First().GameId);
+            roverTeams.Add(team);
+        }
+        return roverTeams;
+    }
+
+    private void HeliSweep(List<RoverTeam> teams, CancellationToken token)
+    {
+        //start helis spread equadistant on the bottom of the map
+        var startingPositions = new List<Location>();
+        var mapWidth = GameBoard.Width;
+        var mapHeight = GameBoard.Height;
+        var numTeams = teams.Count;
+        var teamWidth = mapWidth / numTeams;
+        for (int i = 0; i < numTeams; i++)
+        {
+            startingPositions.Add(new Location(i * teamWidth, mapHeight - 1));
+        }
+        moveHeliSwarmToPoints(teams, startingPositions);
+        // move them up to the top of the map
+        var topPositions = new List<Location>();
+        for (int i = 0; i < numTeams; i++)
+        {
+            topPositions.Add(new Location(i * teamWidth, 0));
+        }
+        moveHeliSwarmToPoints(teams, topPositions);
+        //shift them to the right edge
+        var rightPositions = new List<Location>();
+        for (int i = 0; i < numTeams; i++)
+        {
+            rightPositions.Add(new Location(mapWidth - (i * teamWidth), 0));
+        }
+        rightPositions.Reverse();
+        moveHeliSwarmToPoints(teams, rightPositions);
+
+        //move them to the bottom
+        moveHeliSwarmToPoints(teams, startingPositions);
+    }
+
+    private void HeliScan(List<RoverTeam> teams, CancellationToken token)
+    {
+        var tileLocations = new List<Location>();
+        foreach (var tile in GameBoard.LowResMap)
+        {
+            var tileWidth = tile.upperRightX - tile.lowerLeftX;
+            var tileHeight = tile.upperRightY - tile.lowerLeftY;
+            //make a list of locatins in center of each tile
+            var center = new Location(tile.lowerLeftX + (tileWidth / 2), tile.lowerLeftY + (tileHeight / 2));
+            tileLocations.Add(center);
+        }
+
+        //split up the locations for each heli
+        var numTeams = teams.Count;
+        var total = tileLocations.Count;
+        var perTeam = total / numTeams;
+        //group the locations into lists
+        var teamLocations = new List<List<Location>>();
+        for (int i = 0; i < numTeams; i++)
+        {
+            teamLocations.Add(tileLocations.GetRange(i * perTeam, perTeam));
+        }
+        //move the helis to the locations
+        foreach (var team in teams)
+        {
+            var task = team.Heli.FlyToReconPoints(teamLocations[teams.IndexOf(team)]);
+        }
+    }
 }
 
 
