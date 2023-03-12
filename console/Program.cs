@@ -9,11 +9,12 @@ internal class Program
         [Option('t', "teams", Required = false, HelpText = "Number of teams to join")]
         public int NumTeams { get; set; } = 10;
         [Option('g', "game", Required = false, HelpText = "Game ID")]
-        public string GameId { get; set; } = "j";
+        public string GameId { get; set; } = "p";
         [Option('f', "flight", Required = false, HelpText = "Flight pattern (circle, target, spiral, clock))")]
         public string? FlightPattern { get; set; } = "circle";
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
         public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
+        //public string Url { get; set; } = "https://localhost:54259/";
         [Option('e', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
         public string Heuristic { get; set; } = "manhattan";
         [Option('o', "optimization", Required = false, HelpText = "size of map buffer zone for pathfinding")]
@@ -39,7 +40,7 @@ internal class Program
 
         var trafficControl = new TrafficControlService(client);
         await trafficControl.JoinTeams(options.NumTeams, options.GameId);
-        var filePath = $"/maps/{MapHelper.GetFileNameFromMap(trafficControl.GameBoard.LowResMap)}";
+        var filePath = $"../maps/{MapHelper.GetFileNameFromMap(trafficControl.GameBoard.LowResMap)}";
         await waitForPlayingStatusAsync(trafficControl);
         if (options.QuickMode)
         {
@@ -65,11 +66,11 @@ internal class Program
         while (true)
         {
             await Task.Delay(1000);
-            MapHelper.WriteMapToCSV(trafficControl.GameBoard.VisitedNeighbors, filePath);
+            MapHelper.WriteMapToCSV(trafficControl.GameBoard.VisitedNeighbors, filePath, trafficControl.GameBoard.LowResMap);
         }
     }
     private static async Task waitForPlayingStatusAsync(TrafficControlService trafficControl)
     {
-        while (await trafficControl.CheckStatus() != TrafficControlService.GameStatus.Playing) ;
+        while (await trafficControl.CheckStatus() != GameStatus.Playing) ;
     }
 }

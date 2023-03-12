@@ -7,7 +7,7 @@ public static class MapHelper
     public static ConcurrentDictionary<long, Neighbor> InitializeMap(List<LowResolutionMap> lowResolutionMap)
     {
         // get the file path
-        var path = $"/maps/{GetFileNameFromMap(lowResolutionMap)}";
+        var path = $"./maps/{GetFileNameFromMap(lowResolutionMap)}";
         // check if the file exists
         if (File.Exists(path))
         {
@@ -67,7 +67,7 @@ public static class MapHelper
     }
 
 
-    public static void WriteMapToCSV(ConcurrentDictionary<long, Neighbor> map, string path)
+    public static void WriteMapToCSV(ConcurrentDictionary<long, Neighbor> map, string path, List<LowResolutionMap> lowResMap)
     {
         var lines = new List<string>();
         var maxX = map.Max(x => x.Value.X);
@@ -77,7 +77,7 @@ public static class MapHelper
             var line = new List<string>();
             for (int x = 0; x <= maxX; x++)
             {
-                var cell = map[new Neighbor() { X = x, Y = y }.HashToLong()].Difficulty;
+                var cell = map.TryGetValue(new Neighbor() { X = x, Y = y }.HashToLong(), out var n) ? n.Difficulty : GetLowResMapValue(x, y, lowResMap);
                 line.Add(cell.ToString());
             }
             lines.Add(string.Join(',', line));
@@ -85,20 +85,39 @@ public static class MapHelper
         File.WriteAllLines(path, lines);
     }
 
+    private static int GetLowResMapValue(int x, int y, List<LowResolutionMap> lowResMap)
+    {
+        foreach (var tile in lowResMap)
+        {
+            if (x >= tile.lowerLeftX && x <= tile.upperRightX && y >= tile.lowerLeftY && y <= tile.upperRightY)
+            {
+                return tile.averageDifficulty;
+            }
+        }
+        return 0;
+    }
+
     public static string HashLowResMap(List<LowResolutionMap> lowResMap)
     {
         var sb = new StringBuilder();
         foreach (var map in lowResMap)
         {
-            sb.Append(map.lowerLeftX);
-            sb.Append(map.lowerLeftY);
-            sb.Append(map.upperRightX);
-            sb.Append(map.upperRightY);
             sb.Append(map.averageDifficulty);
         }
         var s = sb.ToString();
-        var hashcode = String.Format("{0:X}", s.GetHashCode());
-        return hashcode;
+
+        var sha1 = new System.Security.Cryptography.SHA1Managed();
+        var plaintextBytes = Encoding.UTF8.GetBytes(s);
+        var hashBytes = sha1.ComputeHash(plaintextBytes);
+
+        sb = new StringBuilder();
+        foreach (var hashByte in hashBytes)
+        {
+            sb.AppendFormat("{0:x2}", hashByte);
+        }
+
+        var hashString = sb.ToString();
+        return hashString;
     }
 
     public static string GetFileNameFromMap(List<LowResolutionMap> lowResMap)
