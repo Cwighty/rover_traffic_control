@@ -14,7 +14,7 @@ internal class Program
         public string? FlightPattern { get; set; } = "circle";
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
         //public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
-        public string Url { get; set; } = "https://localhost:58654/";
+        public string Url { get; set; } = "https://localhost:7287/";
         [Option('e', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
         public string Heuristic { get; set; } = "manhattan";
         [Option('o', "optimization", Required = false, HelpText = "size of map buffer zone for pathfinding")]
@@ -39,9 +39,16 @@ internal class Program
         };
 
         var trafficControl = new TrafficControlService(client);
+        trafficControl.GameWonEvent += async (sender, e) =>
+        {
+            await ReconAndCacheMap(trafficControl);
+        };
+
+
         await trafficControl.JoinTeams(options.NumTeams, options.GameId);
         var filePath = $"../maps/{MapHelper.GetFileNameFromMap(trafficControl.GameBoard.LowResMap)}";
         await waitForPlayingStatusAsync(trafficControl);
+
         if (options.QuickMode)
         {
             trafficControl.GameBoard.VisitedNeighbors = MapHelper.InitializeDefaultMap(trafficControl.GameBoard.LowResMap);
@@ -60,7 +67,6 @@ internal class Program
             {
                 // create the map from the low resolution map
                 trafficControl.FlyHelisToTargets();
-                var task = Task.Run(()=>trafficControl.FlyHeliReconMission()); 
             }
             trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
         }
@@ -70,6 +76,13 @@ internal class Program
             MapHelper.WriteMapToCSV(trafficControl.GameBoard.VisitedNeighbors, filePath, trafficControl.GameBoard.LowResMap);
         }
     }
+
+    private static async Task ReconAndCacheMap(TrafficControlService trafficControl)
+    {
+        trafficControl.CancelAll();
+        await trafficControl.FlyHeliReconMission();
+    }
+
     private static async Task waitForPlayingStatusAsync(TrafficControlService trafficControl)
     {
         while (await trafficControl.CheckStatus() != GameStatus.Playing) ;

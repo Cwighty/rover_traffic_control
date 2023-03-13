@@ -11,6 +11,8 @@ public partial class TrafficControlService
     private int radius;
     public List<RoverTeam> Teams { get; set; }
     public Board GameBoard { get; set; }
+
+    public EventHandler GameWonEvent { get; set; }
     public TrafficControlService(HttpClient client)
     {
         this.client = client;
@@ -43,6 +45,7 @@ public partial class TrafficControlService
         for (int i = 0; i < numTeams; i++)
         {
             var team = await joinNewGame(name, gameId);
+            team.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty);
             Teams.Add(team);
         }
         radius = Math.Min(GameBoard.Width / 2, GameBoard.Height / 2);
@@ -238,8 +241,6 @@ public partial class TrafficControlService
         }
         catch { }
     }
-
-
 
     static string generateRandomName()
     {
@@ -442,7 +443,6 @@ public partial class TrafficControlService
 
     private async Task<List<RoverTeam>> JoinReconHelis(int numHelis)
     {
-        Thread.Sleep(1);
         var roverTeams = new List<RoverTeam>();
         for (int i = 0; i < numHelis; i++)
         {
@@ -450,39 +450,6 @@ public partial class TrafficControlService
             roverTeams.Add(team);
         }
         return roverTeams;
-    }
-
-    private void HeliSweep(List<RoverTeam> teams, CancellationToken token)
-    {
-        //start helis spread equadistant on the bottom of the map
-        var startingPositions = new List<Location>();
-        var mapWidth = GameBoard.Width;
-        var mapHeight = GameBoard.Height;
-        var numTeams = teams.Count;
-        var teamWidth = mapWidth / numTeams;
-        for (int i = 0; i < numTeams; i++)
-        {
-            startingPositions.Add(new Location(i * teamWidth, mapHeight - 1));
-        }
-        moveHeliSwarmToPoints(teams, startingPositions);
-        // move them up to the top of the map
-        var topPositions = new List<Location>();
-        for (int i = 0; i < numTeams; i++)
-        {
-            topPositions.Add(new Location(i * teamWidth, 0));
-        }
-        moveHeliSwarmToPoints(teams, topPositions);
-        //shift them to the right edge
-        var rightPositions = new List<Location>();
-        for (int i = 0; i < numTeams; i++)
-        {
-            rightPositions.Add(new Location(mapWidth - (i * teamWidth), 0));
-        }
-        rightPositions.Reverse();
-        moveHeliSwarmToPoints(teams, rightPositions);
-
-        //move them to the bottom
-        moveHeliSwarmToPoints(teams, startingPositions);
     }
 
     private void HeliScan(List<RoverTeam> teams, CancellationToken token)
@@ -510,7 +477,43 @@ public partial class TrafficControlService
         //move the helis to the locations
         foreach (var team in teams)
         {
-            var task = team.Heli.FlyToReconPoints(teamLocations[teams.IndexOf(team)]);
+            // assign helis to nearest team location
+            var heliLocation = team.Heli.Location;
+            var nearestLocations = GetNearestLocations(heliLocation, teamLocations);
+            var task = team.Heli.FlyToReconPoints(nearestLocations);
+            teamLocations.Remove(nearestLocations);
+        }
+    }
+
+    private List<Location> GetNearestLocations(Location heliLocation, List<List<Location>> teamLocations)
+    {
+        var nearestLocations = new List<Location>();
+        var nearestDistance = int.MaxValue;
+        foreach (var locations in teamLocations)
+        {
+            var distance = GetDistance(heliLocation, locations.First());
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearestLocations = locations;
+            }
+        }
+        return nearestLocations;
+    }
+
+    private int GetDistance(Location heliLocation, Location location)
+    {
+        var x = heliLocation.X - location.X;
+        var y = heliLocation.Y - location.Y;
+        return (int)Math.Sqrt(x * x + y * y);
+    }
+
+    public void CancelAll()
+    {
+        foreach (var team in Teams)
+        {
+            team.Heli.CancelFlight();
+            team.Rover.CancelDrive();
         }
     }
 }

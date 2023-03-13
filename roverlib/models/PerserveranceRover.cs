@@ -10,6 +10,8 @@ public class PerserveranceRover
     private readonly HttpClient client;
     private readonly Action<IEnumerable<Neighbor>> updateVisited;
     private string token;
+    private CancellationTokenSource CancelSource;
+
     public PerserveranceRover(JoinResponse response, HttpClient client, Action<IEnumerable<Neighbor>> updateVisited)
     {
         this.token = response.token;
@@ -17,12 +19,15 @@ public class PerserveranceRover
         Orientation = Enum.TryParse<Orientation>(response.orientation, out var orient) ? orient : Orientation.North;
         this.client = client;
         this.updateVisited = updateVisited;
+        CancelSource = new CancellationTokenSource();
     }
 
     public string CurrentLocation { get => $"{Location.X}, {Location.Y}"; }
     public int Battery { get; set; }
     public Location Location { get; set; }
     public Orientation Orientation { get; set; }
+
+    public EventHandler WinEvent { get; set; }
 
 
     public async Task MoveAsync(Direction direction)
@@ -31,6 +36,10 @@ public class PerserveranceRover
         if (res.IsSuccessStatusCode)
         {
             var result = await res.Content.ReadFromJsonAsync<MoveResponse>();
+            if (result.message.Contains("You made it to all the targets!"))
+            {
+                WinEvent?.Invoke(this, EventArgs.Empty);
+            }
             Location = new Location(result.X, result.Y);
             Battery = result.batteryLevel;
             Enum.TryParse<Orientation>(result.orientation, out var orient);
@@ -114,6 +123,10 @@ public class PerserveranceRover
     {
         while (path.Count > 0)
         {
+            if (CancelSource.Token.IsCancellationRequested)
+            {
+                return;
+            }
             var p = path.Peek();
             try
             {
@@ -168,6 +181,11 @@ public class PerserveranceRover
         {
             DriveToTargets(map, localTargets, heuristic, optBuffer);
         });
+    }
+
+    public void CancelDrive()
+    {
+        CancelSource.Cancel();
     }
 
 }
