@@ -65,12 +65,12 @@ public class IngenuityRover
 
         await task.ContinueWith(async (t) =>
         {
-            if (!reachedTargets.Contains(target) && localTargets.Count > 0)
-            { // Shut off the first heli to reach the target to save rate limiting for frontrunners
-                reachedTargets.Add(target);
-                Console.WriteLine($"Heli {token} reached target {target.X}, {target.Y}");
-                CancelFlight();
-            }
+            // if (!reachedTargets.Contains(target) && localTargets.Count > 0)
+            // { // Shut off the first heli to reach the target to save rate limiting for frontrunners
+            //     reachedTargets.Add(target);
+            //     Console.WriteLine($"Heli {token} reached target {target.X}, {target.Y}");
+            //     CancelFlight();
+            // }
             await FlyToTargets(localTargets);
         });
     }

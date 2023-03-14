@@ -4,6 +4,8 @@ using Roverlib.Services;
 
 internal class Program
 {
+    public static bool IsMapCached { get; private set; } = false;
+
     public class Options
     {
         [Option('t', "teams", Required = false, HelpText = "Number of teams to join")]
@@ -39,46 +41,56 @@ internal class Program
         };
 
         var trafficControl = new TrafficControlService(client);
+
         trafficControl.GameWonEvent += async (sender, e) =>
         {
             await ReconAndCacheMap(trafficControl);
         };
 
 
-        await trafficControl.JoinTeams(options.NumTeams, options.GameId);
+        //await trafficControl.JoinTeams(options.NumTeams, options.GameId);
+        await trafficControl.JoinUntilClose(options.GameId);
         var filePath = $"../maps/{MapHelper.GetFileNameFromMap(trafficControl.GameBoard.LowResMap)}";
+        Console.WriteLine($"Map file path: {filePath}");
         await waitForPlayingStatusAsync(trafficControl);
 
-        if (options.QuickMode)
+
+        // get the file path
+        // check if the file exists
+        if (File.Exists(filePath))
         {
-            trafficControl.GameBoard.VisitedNeighbors = MapHelper.InitializeDefaultMap(trafficControl.GameBoard.LowResMap);
-            trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
+            // read the map from the file
+            IsMapCached = true;
+            trafficControl.GameBoard.VisitedNeighbors = MapHelper.ReadMapFromCSV(filePath);
         }
         else
         {
-            // get the file path
-            // check if the file exists
-            if (File.Exists(filePath))
+            if (options.QuickMode)
             {
-                // read the map from the file
-                trafficControl.GameBoard.VisitedNeighbors = MapHelper.ReadMapFromCSV(filePath);
+                if (!IsMapCached)
+                    trafficControl.GameBoard.VisitedNeighbors = MapHelper.InitializeDefaultMap(trafficControl.GameBoard.LowResMap);
             }
             else
             {
                 // create the map from the low resolution map
                 trafficControl.FlyHelisToTargets();
             }
-            trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
         }
+        trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
         while (true)
         {
-            await Task.Delay(1000);
-            MapHelper.WriteMapToCSV(trafficControl.GameBoard.VisitedNeighbors, filePath, trafficControl.GameBoard.LowResMap);
+            if (!options.QuickMode)
+            {
+                await Task.Delay(1000);
+                MapHelper.WriteMapToCSV(trafficControl.GameBoard.VisitedNeighbors, filePath, trafficControl.GameBoard.LowResMap);
+            }
         }
     }
 
     private static async Task ReconAndCacheMap(TrafficControlService trafficControl)
     {
+        if (IsMapCached)
+            return;
         trafficControl.CancelAll();
         await trafficControl.FlyHeliReconMission();
     }

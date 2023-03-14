@@ -83,7 +83,7 @@ public class PathFinder
                     var newPath = new List<(int X, int Y)>(node.Path);
                     if (newPath.Count > 1 && (newX - newPath[newPath.Count - 2].Item1) * (newY - newPath[newPath.Count - 2].Item2) != 0)
                     { // add cost for not driving straight
-                        newCost += 7;
+                        newCost += 0;
                     }
                     newPath.Add((newX, newY));
                     heap.Enqueue(new Node { X = newX, Y = newY, Cost = newCost, Heuristic = newHeuristic, Path = newPath }, newCost + newHeuristic);

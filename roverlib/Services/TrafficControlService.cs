@@ -9,10 +9,12 @@ public partial class TrafficControlService
     private readonly HttpClient client;
     private Location center = new(0, 0);
     private int radius;
-    public List<RoverTeam> Teams { get; set; }
+    public List<RoverTeam> Teams { get; private set; } = new();
+    public List<RoverTeam> ReconTeams { get; private set; } = new();
     public Board GameBoard { get; set; }
 
     public EventHandler GameWonEvent { get; set; }
+
     public TrafficControlService(HttpClient client)
     {
         this.client = client;
@@ -94,154 +96,6 @@ public partial class TrafficControlService
             var task = Task.Run(() => team.Rover.DriveToTargets(GameBoard.VisitedNeighbors, GameBoard.Targets, heuristic, optBuffer));
         }
     }
-
-
-    public void FlyHeliFormation(string formation = "circle")
-    {
-        CancellationTokenSource cts = new CancellationTokenSource();
-        var token = cts.Token;
-        int numTeams = Teams.Count(); ;
-        if (formation == "circle")
-        {
-            var tasks = new List<Task>();
-            foreach (var team in Teams)
-            {
-                var task = team.Heli.FlyToNearestAxisAsync(this);
-                tasks.Add(task);
-            }
-            try
-            {
-
-                Task.WaitAll(tasks.ToArray());
-            }
-            catch { }
-            Task.Run(() => breathingCircle(numTeams, center, radius, token));
-        }
-        else if (formation == "spiral")
-        {
-            Task.Run(() => spiral(numTeams, center, token));
-        }
-        else if (formation == "clock")
-        {
-            Task.Run(() => clockHand(numTeams, center, radius, token));
-        }
-        else if (formation == "target")
-        {
-            Task.Run(() => sendHelisToTarget(token));
-        }
-    }
-
-    public void DriveRovers(Func<(int, int), (int, int), int> heuristic = null, int mapOpt = 20)
-    {
-        foreach (var team in Teams)
-        {
-            var t = Task.Run(() => team.Rover.DriveToNearestAxisAsync(this));
-        }
-        var path = new List<(int, int)>();
-        while (path.Count == 0)
-        {
-            var sent = new List<RoverTeam>();
-            foreach (var team in Teams)
-            {
-                var map = GameBoard.VisitedNeighbors.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
-                var target = PathFinder.GetNearestTarget(team.Rover.Location, GameBoard.Targets);
-                path = PathFinder.FindPath(map, (team.Rover.Location.X, team.Rover.Location.Y), (target.X, target.Y), heuristic, mapOpt);
-                Thread.Sleep(3000);
-                if (path.Count > 0)
-                {
-                    var pathQueue = path.ToQueue();
-                    pathQueue.Dequeue();
-                    if (!team.Heli.CancelSource.IsCancellationRequested)
-                    {
-                        var t = Task.Run(() => team.Rover.DriveAlongPathAsync(pathQueue));
-                    }
-                    team.Heli.CancelFlight();
-                }
-            }
-        }
-    }
-
-    void breathingCircle(int NUM_TEAMS, Location center, int radius, CancellationToken token)
-    {
-        var helicircle = HeliPatterns.GenerateCircle(center, radius, NUM_TEAMS);
-        var rotation = HeliPatterns.RotateList(helicircle, 0);
-
-        var target = PathFinder.GetNearestTarget(center, GameBoard.Targets);
-        var startingPoints = new List<Location>();
-        for (int j = 0; j < Teams.Count(); j++)
-        {
-            startingPoints.Add(target);
-        }
-        moveHeliSwarmToPoints(Teams, startingPoints);
-        for (int i = 5; i < 100; i++)
-        {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-            moveHeliSwarmToPoints(Teams, rotation);
-            rotation = HeliPatterns.RotateList(rotation, i);
-        }
-    }
-
-    void sendHelisToTarget(CancellationToken token)
-    {
-        foreach (var team in Teams)
-        {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-            var t = Task.Run(() => team.Heli.MoveToPointAsync(GameBoard.Targets[0]));
-        }
-    }
-
-    void clockHand(int NUM_TEAMS, Location center, int radius, CancellationToken token)
-    {
-        for (int i = 1; i < 360; i++)
-        {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-            var flightPlan = HeliPatterns.GenerateClockHand(center, radius, i, NUM_TEAMS);
-            moveHeliSwarmToPoints(Teams, flightPlan);
-        }
-    }
-
-    void spiral(int NUM_TEAMS, Location center, CancellationToken token)
-    {
-        for (int i = 1; i < 360; i += 10)
-        {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-            var rotation = HeliPatterns.GeneratePhyllotaxisSpiral(center, i, NUM_TEAMS, distanceBetween: 50);
-            moveHeliSwarmToPoints(Teams, rotation);
-        }
-    }
-    void moveHeliSwarmToPoints(List<RoverTeam> teams, List<Location> flightPattern)
-    {
-        List<Task> moveHelis = new List<Task>();
-        for (int i = 0; i < teams.Count; i++)
-        {
-            var team = teams[i];
-            var circlePos = flightPattern[i];
-            if (!team.Heli.CancelSource.IsCancellationRequested)
-            {
-                var task = team.Heli.MoveToPointAsync(circlePos);
-                moveHelis.Add(task);
-            }
-        }
-        try
-        {
-
-            Task.WaitAll(moveHelis.ToArray());
-        }
-        catch { }
-    }
-
     static string generateRandomName()
     {
         var animals = new HashSet<string>{
@@ -436,9 +290,7 @@ public partial class TrafficControlService
 
     public async Task FlyHeliReconMission()
     {
-        var helis = await JoinReconHelis(20);
-        var src = new CancellationTokenSource();
-        HeliScan(helis, src.Token);
+        HeliScanAsync(15);
     }
 
     private async Task<List<RoverTeam>> JoinReconHelis(int numHelis)
@@ -452,8 +304,13 @@ public partial class TrafficControlService
         return roverTeams;
     }
 
-    private void HeliScan(List<RoverTeam> teams, CancellationToken token)
+    private async Task HeliScanAsync(int maxHelis)
     {
+        while(ReconTeams.Count < maxHelis)
+        {
+            var team = await joinNewGame($"Recon{ReconTeams.Count}", Teams.First().GameId);
+            ReconTeams.Add(team);
+        }
         var tileLocations = new List<Location>();
         foreach (var tile in GameBoard.LowResMap)
         {
@@ -465,7 +322,7 @@ public partial class TrafficControlService
         }
 
         //split up the locations for each heli
-        var numTeams = teams.Count;
+        var numTeams = ReconTeams.Count < maxHelis ? ReconTeams.Count : maxHelis;
         var total = tileLocations.Count;
         var perTeam = total / numTeams;
         //group the locations into lists
@@ -475,7 +332,7 @@ public partial class TrafficControlService
             teamLocations.Add(tileLocations.GetRange(i * perTeam, perTeam));
         }
         //move the helis to the locations
-        foreach (var team in teams)
+        foreach (var team in ReconTeams.Take(numTeams))
         {
             // assign helis to nearest team location
             var heliLocation = team.Heli.Location;
@@ -515,6 +372,91 @@ public partial class TrafficControlService
             team.Heli.CancelFlight();
             team.Rover.CancelDrive();
         }
+    }
+
+    public async Task JoinUntilClose(string gameId, int maxTeams = 50)
+    {
+        var teams = new List<RoverTeam>();
+        if (GameBoard == null)
+        {
+            teams.Add(await joinNewGame(generateRandomName(), gameId));
+        }
+        while (!IsThereARoverCloseToTarget(teams))
+        {
+            if(teams.Count >= maxTeams)
+            {
+                break;
+            }
+            var team = await joinNewGame(generateRandomName(), gameId);
+            teams.Add(team);
+        }
+        var closestRovers = OrderByDistanceToTarget(teams);  
+        var ventureurs = closestRovers.Take(1).ToList(); 
+        ventureurs.ForEach(x => x.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty));
+        
+        Teams.AddRange(ventureurs);
+        ReconTeams.AddRange(teams);
+    }
+
+    private List<RoverTeam> OrderByDistanceToTarget(List<RoverTeam> teams)
+    {
+        var targets = GameBoard.Targets;
+        var roverDistances = new List<(RoverTeam, int)>();
+        foreach (var team in teams)
+        {
+            var rover = team.Rover;
+            var roverLocation = rover.Location;
+            foreach (var target in targets)
+            {
+                var distance = GetDistance(roverLocation, target);
+                roverDistances.Add((team, distance)); 
+            }
+        }
+        return roverDistances.OrderBy(x => x.Item2).Select(x => x.Item1).ToList();
+    }
+
+    private bool IsThereARoverCloseToTarget(List<RoverTeam> teams)
+    {
+        var targets = GameBoard.Targets;
+        var closestDistance = GetClosestTargetDistanceToEdge();
+        foreach (var team in teams)
+        {
+            var rover = team.Rover;
+            var roverLocation = rover.Location;
+            foreach (var target in targets)
+            {
+                var distance = GetDistance(roverLocation, target);
+                if (distance <= closestDistance)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private double GetClosestTargetDistanceToEdge()
+    {
+        var targets = GameBoard.Targets;
+        var mapWidth = GameBoard.Width;
+        var mapHeight = GameBoard.Height;
+        double minDistance = double.MaxValue;
+
+        foreach (Location target in targets)
+        {
+            double distanceToLeftEdge = target.X;
+            double distanceToRightEdge = mapWidth - target.X;
+            double distanceToTopEdge = target.Y;
+            double distanceToBottomEdge = mapHeight - target.Y;
+
+            double minDistanceToEdge = Math.Min(Math.Min(distanceToLeftEdge, distanceToRightEdge), Math.Min(distanceToTopEdge, distanceToBottomEdge));
+
+            if (minDistanceToEdge < minDistance)
+            {
+                minDistance = minDistanceToEdge;
+            }
+        }
+        return minDistance;
     }
 }
 
