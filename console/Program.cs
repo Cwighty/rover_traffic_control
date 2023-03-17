@@ -16,6 +16,7 @@ internal class Program
         public string? FlightPattern { get; set; } = "circle";
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
         //public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
+        //public string Url { get; set; } = "http://192.168.1.116/";
         public string Url { get; set; } = "https://localhost:7287/";
         [Option('e', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
         public string Heuristic { get; set; } = "manhattan";

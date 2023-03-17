@@ -36,7 +36,21 @@ public partial class TrafficControlService
         }
         else
         {
-            var res = await result.Content.ReadFromJsonAsync<ProblemDetail>();
+            var res = new ProblemDetail();
+            try
+            {
+                res = await result.Content.ReadFromJsonAsync<ProblemDetail>();
+            }
+            catch (Exception e)
+            {
+                res.Title = result.ReasonPhrase;
+                res.Detail = result.StatusCode.ToString();
+            }
+            if (res.Detail.Contains("TooManyRequests")){
+                Console.WriteLine("Too many requests, waiting 1 seconds");
+                await Task.Delay(1000);
+                return await joinNewGame(name, gameid);
+            }
             throw new ProblemDetailException(res);
         }
     }
@@ -306,7 +320,7 @@ public partial class TrafficControlService
 
     private async Task HeliScanAsync(int maxHelis)
     {
-        while(ReconTeams.Count < maxHelis)
+        while (ReconTeams.Count < maxHelis)
         {
             var team = await joinNewGame($"Recon{ReconTeams.Count}", Teams.First().GameId);
             ReconTeams.Add(team);
@@ -383,17 +397,17 @@ public partial class TrafficControlService
         }
         while (!IsThereARoverCloseToTarget(teams))
         {
-            if(teams.Count >= maxTeams)
+            if (teams.Count >= maxTeams)
             {
                 break;
             }
             var team = await joinNewGame(generateRandomName(), gameId);
             teams.Add(team);
         }
-        var closestRovers = OrderByDistanceToTarget(teams);  
-        var ventureurs = closestRovers.Take(1).ToList(); 
+        var closestRovers = OrderByDistanceToTarget(teams);
+        var ventureurs = closestRovers.Take(1).ToList();
         ventureurs.ForEach(x => x.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty));
-        
+
         Teams.AddRange(ventureurs);
         ReconTeams.AddRange(teams);
     }
@@ -409,7 +423,7 @@ public partial class TrafficControlService
             foreach (var target in targets)
             {
                 var distance = GetDistance(roverLocation, target);
-                roverDistances.Add((team, distance)); 
+                roverDistances.Add((team, distance));
             }
         }
         return roverDistances.OrderBy(x => x.Item2).Select(x => x.Item1).ToList();
