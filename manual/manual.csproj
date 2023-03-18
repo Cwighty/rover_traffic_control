@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\roverlib\roverlib.csproj" />
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
   </ItemGroup>
 
   <PropertyGroup>

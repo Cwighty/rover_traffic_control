@@ -10,11 +10,11 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/console/bin/Debug/net7.0/csharprover.dll",
+            "program": "${workspaceFolder}/manual/bin/Debug/net7.0/manual.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/console",
+            "cwd": "${workspaceFolder}/manual",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "integratedTerminal",
+            "console": "externalTerminal",
             "stopAtEntry": false
         },
         {

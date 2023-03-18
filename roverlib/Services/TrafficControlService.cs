@@ -21,7 +21,7 @@ public partial class TrafficControlService
         Teams = new();
     }
 
-    private async Task<RoverTeam> joinNewGame(string? name, string gameid)
+    public async Task<RoverTeam> JoinNewGame(string? name, string gameid)
     {
         var result = await client.GetAsync($"/Game/Join?gameId={gameid}&name={name ?? generateRandomName()}");
         if (result.IsSuccessStatusCode)
@@ -49,7 +49,7 @@ public partial class TrafficControlService
             if (res.Detail.Contains("TooManyRequests")){
                 Console.WriteLine("Too many requests, waiting 1 seconds");
                 await Task.Delay(1000);
-                return await joinNewGame(name, gameid);
+                return await JoinNewGame(name, gameid);
             }
             throw new ProblemDetailException(res);
         }
@@ -60,7 +60,7 @@ public partial class TrafficControlService
         var roverTeams = new List<RoverTeam>();
         for (int i = 0; i < numTeams; i++)
         {
-            var team = await joinNewGame(name, gameId);
+            var team = await JoinNewGame(name, gameId);
             team.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty);
             Teams.Add(team);
         }
@@ -312,7 +312,7 @@ public partial class TrafficControlService
         var roverTeams = new List<RoverTeam>();
         for (int i = 0; i < numHelis; i++)
         {
-            var team = await joinNewGame($"Recon{i}", Teams.First().GameId);
+            var team = await JoinNewGame($"Recon{i}", Teams.First().GameId);
             roverTeams.Add(team);
         }
         return roverTeams;
@@ -322,7 +322,7 @@ public partial class TrafficControlService
     {
         while (ReconTeams.Count < maxHelis)
         {
-            var team = await joinNewGame($"Recon{ReconTeams.Count}", Teams.First().GameId);
+            var team = await JoinNewGame($"Recon{ReconTeams.Count}", Teams.First().GameId);
             ReconTeams.Add(team);
         }
         var tileLocations = new List<Location>();
@@ -393,7 +393,7 @@ public partial class TrafficControlService
         var teams = new List<RoverTeam>();
         if (GameBoard == null)
         {
-            teams.Add(await joinNewGame(generateRandomName(), gameId));
+            teams.Add(await JoinNewGame(generateRandomName(), gameId));
         }
         while (!IsThereARoverCloseToTarget(teams))
         {
@@ -401,7 +401,7 @@ public partial class TrafficControlService
             {
                 break;
             }
-            var team = await joinNewGame(generateRandomName(), gameId);
+            var team = await JoinNewGame(generateRandomName(), gameId);
             teams.Add(team);
         }
         var closestRovers = OrderByDistanceToTarget(teams);
