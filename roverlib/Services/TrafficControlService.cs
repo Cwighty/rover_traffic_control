@@ -46,7 +46,8 @@ public partial class TrafficControlService
                 res.Title = result.ReasonPhrase;
                 res.Detail = result.StatusCode.ToString();
             }
-            if (res.Detail.Contains("TooManyRequests")){
+            if (res.Detail.Contains("TooManyRequests"))
+            {
                 Console.WriteLine("Too many requests, waiting 1 seconds");
                 await Task.Delay(1000);
                 return await JoinNewGame(name, gameid);
@@ -110,6 +111,179 @@ public partial class TrafficControlService
             var task = Task.Run(() => team.Rover.DriveToTargets(GameBoard.VisitedNeighbors, GameBoard.Targets, heuristic, optBuffer));
         }
     }
+
+
+    public async Task FlyHeliReconMission()
+    {
+        HeliScanAsync(15);
+    }
+
+    private async Task<List<RoverTeam>> JoinReconHelis(int numHelis)
+    {
+        var roverTeams = new List<RoverTeam>();
+        for (int i = 0; i < numHelis; i++)
+        {
+            var team = await JoinNewGame($"Recon{i}", Teams.First().GameId);
+            roverTeams.Add(team);
+        }
+        return roverTeams;
+    }
+
+    private async Task HeliScanAsync(int maxHelis)
+    {
+        while (ReconTeams.Count < maxHelis)
+        {
+            var team = await JoinNewGame($"Recon{ReconTeams.Count}", Teams.First().GameId);
+            ReconTeams.Add(team);
+        }
+        var tileLocations = new List<Location>();
+        foreach (var tile in GameBoard.LowResMap)
+        {
+            var tileWidth = tile.upperRightX - tile.lowerLeftX;
+            var tileHeight = tile.upperRightY - tile.lowerLeftY;
+            //make a list of locatins in center of each tile
+            var center = new Location(tile.lowerLeftX + (tileWidth / 2), tile.lowerLeftY + (tileHeight / 2));
+            tileLocations.Add(center);
+        }
+
+        //split up the locations for each heli
+        var numTeams = ReconTeams.Count < maxHelis ? ReconTeams.Count : maxHelis;
+        var total = tileLocations.Count;
+        var perTeam = total / numTeams;
+        //group the locations into lists
+        var teamLocations = new List<List<Location>>();
+        for (int i = 0; i < numTeams; i++)
+        {
+            teamLocations.Add(tileLocations.GetRange(i * perTeam, perTeam));
+        }
+        //move the helis to the locations
+        foreach (var team in ReconTeams.Take(numTeams))
+        {
+            // assign helis to nearest team location
+            var heliLocation = team.Heli.Location;
+            var nearestLocations = GetNearestLocations(heliLocation, teamLocations);
+            var task = team.Heli.FlyToReconPoints(nearestLocations);
+            teamLocations.Remove(nearestLocations);
+        }
+    }
+
+    private List<Location> GetNearestLocations(Location heliLocation, List<List<Location>> teamLocations)
+    {
+        var nearestLocations = new List<Location>();
+        var nearestDistance = int.MaxValue;
+        foreach (var locations in teamLocations)
+        {
+            var distance = GetDistance(heliLocation, locations.First());
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearestLocations = locations;
+            }
+        }
+        return nearestLocations;
+    }
+
+    private int GetDistance(Location heliLocation, Location location)
+    {
+        var x = heliLocation.X - location.X;
+        var y = heliLocation.Y - location.Y;
+        return (int)Math.Sqrt(x * x + y * y);
+    }
+
+    public void CancelAll()
+    {
+        foreach (var team in Teams)
+        {
+            team.Heli.CancelFlight();
+            team.Rover.CancelDrive();
+        }
+    }
+
+    public async Task JoinUntilClose(string gameId, int maxTeams = 50)
+    {
+        var teams = new List<RoverTeam>();
+        if (GameBoard == null)
+        {
+            teams.Add(await JoinNewGame(generateRandomName(), gameId));
+        }
+        while (!IsThereARoverCloseToTarget(teams))
+        {
+            if (teams.Count >= maxTeams)
+            {
+                break;
+            }
+            var team = await JoinNewGame(generateRandomName(), gameId);
+            teams.Add(team);
+        }
+        var closestRovers = OrderByDistanceToTarget(teams);
+        var ventureurs = closestRovers.Take(1).ToList();
+        ventureurs.ForEach(x => x.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty));
+
+        Teams.AddRange(ventureurs);
+        ReconTeams.AddRange(teams);
+    }
+
+    private List<RoverTeam> OrderByDistanceToTarget(List<RoverTeam> teams)
+    {
+        var targets = GameBoard.Targets;
+        var roverDistances = new List<(RoverTeam, int)>();
+        foreach (var team in teams)
+        {
+            var rover = team.Rover;
+            var roverLocation = rover.Location;
+            foreach (var target in targets)
+            {
+                var distance = GetDistance(roverLocation, target);
+                roverDistances.Add((team, distance));
+            }
+        }
+        return roverDistances.OrderBy(x => x.Item2).Select(x => x.Item1).ToList();
+    }
+
+    private bool IsThereARoverCloseToTarget(List<RoverTeam> teams)
+    {
+        var targets = GameBoard.Targets;
+        var closestDistance = GetClosestTargetDistanceToEdge();
+        foreach (var team in teams)
+        {
+            var rover = team.Rover;
+            var roverLocation = rover.Location;
+            foreach (var target in targets)
+            {
+                var distance = GetDistance(roverLocation, target);
+                if (distance <= closestDistance)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private double GetClosestTargetDistanceToEdge()
+    {
+        var targets = GameBoard.Targets;
+        var mapWidth = GameBoard.Width;
+        var mapHeight = GameBoard.Height;
+        double minDistance = double.MaxValue;
+
+        foreach (Location target in targets)
+        {
+            double distanceToLeftEdge = target.X;
+            double distanceToRightEdge = mapWidth - target.X;
+            double distanceToTopEdge = target.Y;
+            double distanceToBottomEdge = mapHeight - target.Y;
+
+            double minDistanceToEdge = Math.Min(Math.Min(distanceToLeftEdge, distanceToRightEdge), Math.Min(distanceToTopEdge, distanceToBottomEdge));
+
+            if (minDistanceToEdge < minDistance)
+            {
+                minDistance = minDistanceToEdge;
+            }
+        }
+        return minDistance;
+    }
+
     static string generateRandomName()
     {
         var animals = new HashSet<string>{
@@ -300,177 +474,6 @@ public partial class TrafficControlService
         var animal = animals.ElementAt(random.Next(animals.Count));
         var letterAdjective = letterAdjectives.ElementAt(random.Next(letterAdjectives.Count));
         return $"{letterAdjective}{animal}";
-    }
-
-    public async Task FlyHeliReconMission()
-    {
-        HeliScanAsync(15);
-    }
-
-    private async Task<List<RoverTeam>> JoinReconHelis(int numHelis)
-    {
-        var roverTeams = new List<RoverTeam>();
-        for (int i = 0; i < numHelis; i++)
-        {
-            var team = await JoinNewGame($"Recon{i}", Teams.First().GameId);
-            roverTeams.Add(team);
-        }
-        return roverTeams;
-    }
-
-    private async Task HeliScanAsync(int maxHelis)
-    {
-        while (ReconTeams.Count < maxHelis)
-        {
-            var team = await JoinNewGame($"Recon{ReconTeams.Count}", Teams.First().GameId);
-            ReconTeams.Add(team);
-        }
-        var tileLocations = new List<Location>();
-        foreach (var tile in GameBoard.LowResMap)
-        {
-            var tileWidth = tile.upperRightX - tile.lowerLeftX;
-            var tileHeight = tile.upperRightY - tile.lowerLeftY;
-            //make a list of locatins in center of each tile
-            var center = new Location(tile.lowerLeftX + (tileWidth / 2), tile.lowerLeftY + (tileHeight / 2));
-            tileLocations.Add(center);
-        }
-
-        //split up the locations for each heli
-        var numTeams = ReconTeams.Count < maxHelis ? ReconTeams.Count : maxHelis;
-        var total = tileLocations.Count;
-        var perTeam = total / numTeams;
-        //group the locations into lists
-        var teamLocations = new List<List<Location>>();
-        for (int i = 0; i < numTeams; i++)
-        {
-            teamLocations.Add(tileLocations.GetRange(i * perTeam, perTeam));
-        }
-        //move the helis to the locations
-        foreach (var team in ReconTeams.Take(numTeams))
-        {
-            // assign helis to nearest team location
-            var heliLocation = team.Heli.Location;
-            var nearestLocations = GetNearestLocations(heliLocation, teamLocations);
-            var task = team.Heli.FlyToReconPoints(nearestLocations);
-            teamLocations.Remove(nearestLocations);
-        }
-    }
-
-    private List<Location> GetNearestLocations(Location heliLocation, List<List<Location>> teamLocations)
-    {
-        var nearestLocations = new List<Location>();
-        var nearestDistance = int.MaxValue;
-        foreach (var locations in teamLocations)
-        {
-            var distance = GetDistance(heliLocation, locations.First());
-            if (distance < nearestDistance)
-            {
-                nearestDistance = distance;
-                nearestLocations = locations;
-            }
-        }
-        return nearestLocations;
-    }
-
-    private int GetDistance(Location heliLocation, Location location)
-    {
-        var x = heliLocation.X - location.X;
-        var y = heliLocation.Y - location.Y;
-        return (int)Math.Sqrt(x * x + y * y);
-    }
-
-    public void CancelAll()
-    {
-        foreach (var team in Teams)
-        {
-            team.Heli.CancelFlight();
-            team.Rover.CancelDrive();
-        }
-    }
-
-    public async Task JoinUntilClose(string gameId, int maxTeams = 50)
-    {
-        var teams = new List<RoverTeam>();
-        if (GameBoard == null)
-        {
-            teams.Add(await JoinNewGame(generateRandomName(), gameId));
-        }
-        while (!IsThereARoverCloseToTarget(teams))
-        {
-            if (teams.Count >= maxTeams)
-            {
-                break;
-            }
-            var team = await JoinNewGame(generateRandomName(), gameId);
-            teams.Add(team);
-        }
-        var closestRovers = OrderByDistanceToTarget(teams);
-        var ventureurs = closestRovers.Take(1).ToList();
-        ventureurs.ForEach(x => x.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty));
-
-        Teams.AddRange(ventureurs);
-        ReconTeams.AddRange(teams);
-    }
-
-    private List<RoverTeam> OrderByDistanceToTarget(List<RoverTeam> teams)
-    {
-        var targets = GameBoard.Targets;
-        var roverDistances = new List<(RoverTeam, int)>();
-        foreach (var team in teams)
-        {
-            var rover = team.Rover;
-            var roverLocation = rover.Location;
-            foreach (var target in targets)
-            {
-                var distance = GetDistance(roverLocation, target);
-                roverDistances.Add((team, distance));
-            }
-        }
-        return roverDistances.OrderBy(x => x.Item2).Select(x => x.Item1).ToList();
-    }
-
-    private bool IsThereARoverCloseToTarget(List<RoverTeam> teams)
-    {
-        var targets = GameBoard.Targets;
-        var closestDistance = GetClosestTargetDistanceToEdge();
-        foreach (var team in teams)
-        {
-            var rover = team.Rover;
-            var roverLocation = rover.Location;
-            foreach (var target in targets)
-            {
-                var distance = GetDistance(roverLocation, target);
-                if (distance <= closestDistance)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private double GetClosestTargetDistanceToEdge()
-    {
-        var targets = GameBoard.Targets;
-        var mapWidth = GameBoard.Width;
-        var mapHeight = GameBoard.Height;
-        double minDistance = double.MaxValue;
-
-        foreach (Location target in targets)
-        {
-            double distanceToLeftEdge = target.X;
-            double distanceToRightEdge = mapWidth - target.X;
-            double distanceToTopEdge = target.Y;
-            double distanceToBottomEdge = mapHeight - target.Y;
-
-            double minDistanceToEdge = Math.Min(Math.Min(distanceToLeftEdge, distanceToRightEdge), Math.Min(distanceToTopEdge, distanceToBottomEdge));
-
-            if (minDistanceToEdge < minDistance)
-            {
-                minDistance = minDistanceToEdge;
-            }
-        }
-        return minDistance;
     }
 }
 

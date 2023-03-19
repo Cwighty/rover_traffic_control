@@ -18,12 +18,17 @@ public class PerserveranceRover
         Location = new Location(response.startingX, response.startingY);
         Orientation = Enum.TryParse<Orientation>(response.orientation, out var orient) ? orient : Orientation.North;
         this.client = client;
+        this.InitialBattery = response.batteryLevel;
         this.updateVisited = updateVisited;
         CancelSource = new CancellationTokenSource();
     }
 
     public string CurrentLocation { get => $"{Location.X}, {Location.Y}"; }
+
+    public int InitialBattery { get; set; }
     public int Battery { get; set; }
+    private List<int> batteryLevels { get; set; } = new List<int>();
+    private int straightDrivingIncentive = 0;
     public Location Location { get; set; }
     public Orientation Orientation { get; set; }
 
@@ -41,6 +46,7 @@ public class PerserveranceRover
             }
             Location = new Location(result.X, result.Y);
             Battery = result.batteryLevel;
+            straightDrivingIncentive = calculateStraightDrivingIncentive(result.batteryLevel);
             Enum.TryParse<Orientation>(result.orientation, out var orient);
             Orientation = orient;
             updateVisited(result.neighbors);
@@ -156,13 +162,32 @@ public class PerserveranceRover
 
     private async Task PathfindToPointAsync(ConcurrentDictionary<long, Neighbor> map, Location target, Func<(int, int), (int, int), int> heuristic, int optBuffer)
     {
-        var path = new List<(int, int)>();
-        while (path.Count == 0)
+        while (Location.X != target.X && Location.Y != target.Y)
         {
-            var m = map.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
-            path = PathFinder.FindPath(m, (Location.X, Location.Y), (target.X, target.Y), heuristic, optBuffer);
+            var path = new List<(int, int)>();
+            while (path.Count == 0)
+            {
+                var m = map.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
+                path = PathFinder.FindPath(m, (Location.X, Location.Y), (target.X, target.Y), heuristic, optBuffer, straightDrivingIncentive);
+            }
+            await DriveAlongPathAsync(path.Take(11).ToQueue());
         }
-        await DriveAlongPathAsync(path.ToQueue());
+    }
+
+    private int calculateStraightDrivingIncentive(int batteryLevel)
+    {
+        var lowBatteryThreshold = InitialBattery * 0.5;
+        batteryLevels.Add(batteryLevel);
+        if (batteryLevels.Count > 10)
+        {
+            batteryLevels.RemoveAt(0);
+        }
+        var countOfZeros = batteryLevels.Count(b => b < lowBatteryThreshold);
+        if (countOfZeros > 5)
+        {
+            Console.WriteLine("Low battery detected");
+        }
+        return 100 - (countOfZeros * 10);
     }
 
     public void DriveToTargets(ConcurrentDictionary<long, Neighbor> map, List<Location> targets, Func<(int, int), (int, int), int> heuristic = null, int optBuffer = 20)
