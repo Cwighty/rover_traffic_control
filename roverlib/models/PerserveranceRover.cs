@@ -20,6 +20,7 @@ public class PerserveranceRover
         this.client = client;
         this.InitialBattery = response.batteryLevel;
         this.updateVisited = updateVisited;
+        this.TravelCostEstimate = PathFinder.EstimateCostToFinish(Location, response.targets, response.lowResolutionMap.Average(x => x.averageDifficulty));
         CancelSource = new CancellationTokenSource();
     }
 
@@ -31,6 +32,8 @@ public class PerserveranceRover
     private int straightDrivingIncentive = 0;
     public Location Location { get; set; }
     public Orientation Orientation { get; set; }
+
+    public int TravelCostEstimate { get; private set; }
 
     public EventHandler WinEvent { get; set; }
 
@@ -46,7 +49,6 @@ public class PerserveranceRover
             }
             Location = new Location(result.X, result.Y);
             Battery = result.batteryLevel;
-            straightDrivingIncentive = calculateStraightDrivingIncentive(result.batteryLevel);
             Enum.TryParse<Orientation>(result.orientation, out var orient);
             Orientation = orient;
             updateVisited(result.neighbors);
@@ -168,27 +170,17 @@ public class PerserveranceRover
             while (path.Count == 0)
             {
                 var m = map.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
-                path = PathFinder.FindPath(m, (Location.X, Location.Y), (target.X, target.Y), heuristic, optBuffer, straightDrivingIncentive);
+                (path, var cost) = PathFinder.FindPath(m, (Location.X, Location.Y), (target.X, target.Y), heuristic, optBuffer, straightDrivingIncentive);
+                if (Battery > cost)
+                {
+                    Console.WriteLine("Initializing straight driving, battery sufficient to drive to target");
+                    straightDrivingIncentive = 100;
+                }
             }
-            await DriveAlongPathAsync(path.Take(11).ToQueue());
+            await DriveAlongPathAsync(path.ToQueue());
         }
     }
 
-    private int calculateStraightDrivingIncentive(int batteryLevel)
-    {
-        var lowBatteryThreshold = InitialBattery * 0.5;
-        batteryLevels.Add(batteryLevel);
-        if (batteryLevels.Count > 10)
-        {
-            batteryLevels.RemoveAt(0);
-        }
-        var countOfZeros = batteryLevels.Count(b => b < lowBatteryThreshold);
-        if (countOfZeros > 5)
-        {
-            Console.WriteLine("Low battery detected");
-        }
-        return 100 - (countOfZeros * 10);
-    }
 
     public void DriveToTargets(ConcurrentDictionary<long, Neighbor> map, List<Location> targets, Func<(int, int), (int, int), int> heuristic = null, int optBuffer = 20)
     {
@@ -202,6 +194,7 @@ public class PerserveranceRover
         var task = PathfindToPointAsync(map, target, heuristic, optBuffer);
         task.ContinueWith((t) =>
         {
+            straightDrivingIncentive = 0;
             DriveToTargets(map, localTargets, heuristic, optBuffer);
         });
     }

@@ -20,7 +20,7 @@ public class PathFinder
         }
     }
 
-    public static List<(int X, int Y)> FindPath(
+    public static (List<(int X, int Y)>, int) FindPath(
         Dictionary<(int X, int Y), int> map,
         (int X, int Y) start,
         (int X, int Y) target,
@@ -38,7 +38,7 @@ public class PathFinder
         // Check if the start and target positions are within the map
         if (!map.ContainsKey(start) || !map.ContainsKey(target))
         {
-            return new List<(int X, int Y)>();
+            return (new List<(int X, int Y)>(), -1);
         }
 
         // A* algorithm to find most efficient path
@@ -55,7 +55,7 @@ public class PathFinder
             visited.Add((node.X, node.Y));
             if (node.X == target.X && node.Y == target.Y)
             {
-                return node.Path;
+                return (node.Path, node.Cost);
             }
             foreach (var dir in new[] { (0, 1), (0, -1), (1, 0), (-1, 0) })
             {
@@ -77,7 +77,7 @@ public class PathFinder
             }
         }
 
-        return new List<(int X, int Y)>();
+        return (new List<(int X, int Y)>(), -1);
     }
 
     public static int ManhattanDistance((int X, int Y) a, (int X, int Y) b)
@@ -136,5 +136,20 @@ public class PathFinder
         var nearest = targets.OrderBy(t => Math.Abs(t.X - currentLocation.X) + Math.Abs(t.Y - currentLocation.Y)).First();
         return nearest;
     }
-    
+
+    public static int EstimateCostToFinish(Location currentLocation, List<Location> targets, double mapAvgDifficulty)
+    {
+        // Estimate the cost to finish from current location to all targets by multiplying the distance to travel from target to target by average difficulty of the map
+        double totalCost = 0;
+        var targetsCopy = new List<Location>(targets);
+        while (targetsCopy.Count > 0)
+        {
+            var nearest = GetNearestTarget(currentLocation, targetsCopy);
+            totalCost += ManhattanDistance((currentLocation.X, currentLocation.Y), (nearest.X, nearest.Y)) * mapAvgDifficulty;
+            currentLocation = nearest;
+            targetsCopy.Remove(nearest);
+        }
+        return (int)totalCost;
+    }
+
 }
