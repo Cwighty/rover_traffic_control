@@ -62,7 +62,7 @@ internal partial class Program
         while (true)
         {
             await UpdateCachedMap(gameOptions, trafficControl, filePath);
-            await Task.Delay(1000);
+            await Task.Delay(8000);
         }
     }
 

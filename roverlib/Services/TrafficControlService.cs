@@ -81,6 +81,7 @@ public partial class TrafficControlService
         {
             teams.Add(await JoinNewGame(NameGenerator.Generate(), gameId));
         }
+
         while (!IsThereARoverCloseToTarget(teams))
         {
             if (teams.Count >= maxTeams)

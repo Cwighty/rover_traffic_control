@@ -21,7 +21,31 @@ public static class TravelingSalesman
             }
         }
 
-        return shortestRoute;
+        return new List<Location>(shortestRoute);
+    }
+
+    public static List<Location> GetShortestRoute(
+        Location currentLocation,
+        List<Location> locations
+    )
+    {
+        var permutations = GetPermutations(locations);
+        var shortestDistance = double.MaxValue;
+        List<Location> shortestRoute = null;
+
+        foreach (var route in permutations)
+        {
+            var distance = GetDistance(route);
+
+            if (distance < shortestDistance)
+            {
+                shortestDistance = distance;
+                shortestRoute = route.ToList();
+            }
+        }
+
+        shortestRoute.Insert(0, currentLocation);
+        return new List<Location>(shortestRoute);
     }
 
     public static List<List<Location>> GetPermutations(List<Location> list)

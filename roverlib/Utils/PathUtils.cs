@@ -27,7 +27,7 @@ public class PathUtils
     }
 
     public static (List<(int X, int Y)>, int) FindPath(
-        Dictionary<(int X, int Y), int> map,
+        Dictionary<long, Neighbor> cmap,
         (int X, int Y) start,
         (int X, int Y) target,
         Func<(int, int), (int, int), int> heuristicFunction = null,
@@ -40,7 +40,7 @@ public class PathUtils
             heuristicFunction = ManhattanDistance;
         }
 
-        map = GetSubmap(map, start, target, mapOptimizationBuffer);
+        var map = GetSubmap(cmap, start, target, mapOptimizationBuffer);
 
         // Check if the start and target positions are within the map
         if (!map.ContainsKey(start) || !map.ContainsKey(target))
@@ -127,8 +127,8 @@ public class PathUtils
         return (int)Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
     }
 
-    public static Dictionary<(int, int), int> GetSubmap(
-        Dictionary<(int, int), int> mapData,
+    public static Dictionary<(int X, int Y), int> GetSubmap(
+        Dictionary<long, Neighbor> mapData,
         (int, int) start,
         (int, int) target,
         int width
@@ -137,6 +137,10 @@ public class PathUtils
         // Optimize the map by only including the cells that are within the buffer
         // Compute the slope and intercept
         double m = (double)(target.Item2 - start.Item2) / (double)(target.Item1 - start.Item1);
+        if (double.IsInfinity(m))
+        {
+            m = 0;
+        }
         double b = (double)start.Item2 - m * (double)start.Item1;
 
         // Determine the range of rows and columns to include in the submap
@@ -145,7 +149,7 @@ public class PathUtils
         int minCol = Math.Min(start.Item2, target.Item2) - width;
         int maxCol = Math.Max(start.Item2, target.Item2) + width;
 
-        Dictionary<(int, int), int> submapData = new Dictionary<(int, int), int>();
+        Dictionary<long, Neighbor> submapData = new Dictionary<long, Neighbor>();
 
         // Iterate over the rows and columns of the map and copy the cells that
         // fall within the range and the "buffer zone" to the submap
@@ -153,21 +157,23 @@ public class PathUtils
         {
             for (int colIdx = minCol; colIdx <= maxCol; colIdx++)
             {
-                (int, int) pos = (rowIdx, colIdx);
-                if (mapData.TryGetValue(pos, out int val))
+                Neighbor pos = new Neighbor { X = rowIdx, Y = colIdx };
+                if (mapData.TryGetValue(pos.HashToLong(), out Neighbor val))
                 {
                     // check distance to see if it is within the buffer zone
-                    double dist =
-                        Math.Abs(m * pos.Item1 - pos.Item2 + b) / Math.Sqrt(Math.Pow(m, 2) + 1);
+                    double dist = Math.Abs(m * pos.X - pos.Y + b) / Math.Sqrt(Math.Pow(m, 2) + 1);
                     if (dist <= width)
                     {
-                        submapData[pos] = val;
+                        submapData[pos.HashToLong()] = val;
                     }
                 }
             }
         }
 
-        return submapData;
+        return submapData.ToDictionary(
+            kvp => (kvp.Value.X, kvp.Value.Y),
+            kvp => kvp.Value.Difficulty
+        );
     }
 
     public static Location GetNearestTarget(Location currentLocation, List<Location> targets)

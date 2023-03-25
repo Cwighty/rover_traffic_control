@@ -193,6 +193,7 @@ public static class NameGenerator
         var random = new Random();
         var animal = animals.ElementAt(random.Next(animals.Count));
         var letterAdjective = letterAdjectives.ElementAt(random.Next(letterAdjectives.Count));
-        return $"{letterAdjective}{animal}";
+        //return $"{letterAdjective}{animal}";
+        return "Anon";
     }
 }

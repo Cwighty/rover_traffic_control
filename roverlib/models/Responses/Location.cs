@@ -21,4 +21,31 @@ public class Location
         Location other = (Location)obj;
         return (X == other.X) && (Y == other.Y);
     }
+
+    // override not equals
+    public static bool operator !=(Location a, Location b)
+    {
+        return !(a == b);
+    }
+
+    // override equals
+    public static bool operator ==(Location a, Location b)
+    {
+        if (ReferenceEquals(a, b))
+        {
+            return true;
+        }
+
+        if (((object)a == null) || ((object)b == null))
+        {
+            return false;
+        }
+
+        return a.X == b.X && a.Y == b.Y;
+    }
+
+    public override string ToString()
+    {
+        return $"({X}, {Y})";
+    }
 }

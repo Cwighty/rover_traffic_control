@@ -189,12 +189,16 @@ public class PerserveranceRover
         int optBuffer
     )
     {
-        while (Location.X != target.X && Location.Y != target.Y)
+        while (Location != target)
         {
             var path = new List<(int, int)>();
+            var m = new Dictionary<long, Neighbor>(map);
             while (path.Count == 0)
             {
-                var m = map.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
+                if (Location == target)
+                {
+                    return;
+                }
                 (path, var cost) = PathUtils.FindPath(
                     m,
                     (Location.X, Location.Y),
@@ -215,28 +219,28 @@ public class PerserveranceRover
         }
     }
 
-    public void DriveToTargets(
+    public async void DriveToTargets(
         ConcurrentDictionary<long, Neighbor> map,
         List<Location> targets,
         Func<(int, int), (int, int), int> heuristic = null,
         int optBuffer = 20
     )
     {
-        var localTargets = new List<Location>(targets);
+        var localTargets = new List<Location>(TravelingSalesman.GetShortestRoute(targets));
+        Console.WriteLine(
+            $"The shortest route has targets in this order: {string.Join(", ", localTargets)}"
+        );
         if (localTargets.Count == 0)
         {
             return;
         }
-        var target = PathUtils.GetNearestTarget(Location, localTargets);
-        localTargets.Remove(target);
+        //var target = PathUtils.GetNearestTarget(Location, localTargets);
+        var target = localTargets[0];
+        Console.WriteLine($"Driving to target {target}");
         var task = PathfindToPointAsync(map, target, heuristic, optBuffer);
-        task.ContinueWith(
-            (t) =>
-            {
-                straightDrivingIncentive = 0;
-                DriveToTargets(map, localTargets, heuristic, optBuffer);
-            }
-        );
+        await task;
+        localTargets.Remove(target);
+        DriveToTargets(map, localTargets, heuristic, optBuffer);
     }
 
     public void CancelDrive()
