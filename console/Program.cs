@@ -2,45 +2,23 @@
 using Roverlib.Models;
 using Roverlib.Services;
 
-internal class Program
+internal partial class Program
 {
     public static bool IsMapCached { get; private set; } = false;
 
-    public class Options
-    {
-        [Option('t', "teams", Required = false, HelpText = "Number of teams to join")]
-        public int NumTeams { get; set; } = 10;
-        [Option('g', "game", Required = false, HelpText = "Game ID")]
-        public string GameId { get; set; } = "a";
-        [Option('f', "flight", Required = false, HelpText = "Flight pattern (circle, target, spiral, clock))")]
-        public string? FlightPattern { get; set; } = "circle";
-        [Option('u', "url", Required = false, HelpText = "URL of game server")]
-        //public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
-        //public string Url { get; set; } = "http://192.168.1.116/";
-        public string Url { get; set; } = "https://localhost:7287/";
-        [Option('e', "heuristic", Required = false, HelpText = "Heuristic to use (manhattan, euclidean)")]
-        public string Heuristic { get; set; } = "manhattan";
-        [Option('o', "optimization", Required = false, HelpText = "size of map buffer zone for pathfinding")]
-        public int MapOptimizationBuffer { get; set; } = 20;
-        [Option('q', "quickmode", Required = false, HelpText = "No helis, for when battery doesnt matter.")]
-        public bool QuickMode { get; set; } = false;
-    }
     private static async Task Main(string[] args)
     {
-        var options = Parser.Default.ParseArguments<Options>(args).Value;
-
-        HttpClient client = new HttpClient()
+        var gameOptions = Parser.Default.ParseArguments<Options>(args).Value;
+        Func<(int, int), (int, int), int> heuristic = gameOptions.Heuristic switch
         {
-            BaseAddress = new Uri(options.Url)
+            "manhattan" => PathUtils.ManhattanDistance,
+            "euclidean" => PathUtils.EuclideanDistance,
+            _ => PathUtils.ManhattanDistance
         };
+        if (gameOptions.StraightPath)
+            PathUtils.StraightIncentive = 100;
 
-        Func<(int, int), (int, int), int> heuristic = options.Heuristic switch
-        {
-            "manhattan" => PathFinder.ManhattanDistance,
-            "euclidean" => PathFinder.EuclideanDistance,
-            _ => PathFinder.ManhattanDistance
-        };
-
+        HttpClient client = new HttpClient() { BaseAddress = new Uri(gameOptions.Url) };
         var trafficControl = new TrafficControlService(client);
 
         trafficControl.GameWonEvent += async (sender, e) =>
@@ -48,44 +26,75 @@ internal class Program
             await ReconAndCacheMap(trafficControl);
         };
 
+        await trafficControl.JoinUntilClose(
+            gameOptions.GameId,
+            gameOptions.NumTeams,
+            gameOptions.MaxTeams
+        );
 
-        //await trafficControl.JoinTeams(options.NumTeams, options.GameId);
-        await trafficControl.JoinUntilClose(options.GameId);
-        var filePath = $"../maps/{MapHelper.GetFileNameFromMap(trafficControl.GameBoard.LowResMap)}";
+        var filePath =
+            $"../maps/{MapHelper.GetFileNameFromMap(trafficControl.GameBoard.LowResMap)}";
         Console.WriteLine($"Map file path: {filePath}");
         await waitForPlayingStatusAsync(trafficControl);
 
-
-        // get the file path
-        // check if the file exists
         if (File.Exists(filePath))
         {
-            // read the map from the file
-            IsMapCached = true;
-            trafficControl.GameBoard.VisitedNeighbors = MapHelper.ReadMapFromCSV(filePath);
+            InitializeMapWithCachedFile(trafficControl, filePath);
         }
         else
         {
-            if (options.QuickMode)
+            if (gameOptions.QuickMode)
             {
                 if (!IsMapCached)
-                    trafficControl.GameBoard.VisitedNeighbors = MapHelper.InitializeDefaultMap(trafficControl.GameBoard.LowResMap);
+                    InitalizeMapWithLowResMap(trafficControl);
+                //Dont fly any helis to scout
             }
             else
             {
-                // create the map from the low resolution map
+                // fly helis to scout
                 trafficControl.FlyHelisToTargets();
             }
         }
-        trafficControl.DriveRoversToTargets(heuristic, options.MapOptimizationBuffer);
+
+        trafficControl.DriveRoversToTargets(heuristic, gameOptions.MapOptimizationBuffer);
+
         while (true)
         {
-            if (!options.QuickMode)
-            {
-                await Task.Delay(1000);
-                MapHelper.WriteMapToCSV(trafficControl.GameBoard.VisitedNeighbors, filePath, trafficControl.GameBoard.LowResMap);
-            }
+            await UpdateCachedMap(gameOptions, trafficControl, filePath);
+            await Task.Delay(1000);
         }
+    }
+
+    private static async Task UpdateCachedMap(
+        Options gameOptions,
+        TrafficControlService trafficControl,
+        string filePath
+    )
+    {
+        if (!gameOptions.QuickMode)
+        {
+            MapHelper.WriteMapToCSV(
+                trafficControl.GameBoard.VisitedNeighbors,
+                filePath,
+                trafficControl.GameBoard.LowResMap
+            );
+        }
+    }
+
+    private static void InitalizeMapWithLowResMap(TrafficControlService trafficControl)
+    {
+        trafficControl.GameBoard.VisitedNeighbors = MapHelper.InitializeDefaultMap(
+            trafficControl.GameBoard.LowResMap
+        );
+    }
+
+    private static void InitializeMapWithCachedFile(
+        TrafficControlService trafficControl,
+        string filePath
+    )
+    {
+        IsMapCached = true;
+        trafficControl.GameBoard.VisitedNeighbors = MapHelper.ReadMapFromCSV(filePath);
     }
 
     private static async Task ReconAndCacheMap(TrafficControlService trafficControl)
@@ -98,6 +107,7 @@ internal class Program
 
     private static async Task waitForPlayingStatusAsync(TrafficControlService trafficControl)
     {
-        while (await trafficControl.CheckStatus() != GameStatus.Playing) ;
+        while (await trafficControl.CheckStatus() != GameStatus.Playing)
+            ;
     }
 }

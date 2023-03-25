@@ -1,6 +1,4 @@
-namespace Roverlib.Services;
-
-
+namespace Roverlib.Models;
 
 public enum GameStatus
 {
@@ -8,6 +6,3 @@ public enum GameStatus
     Joining,
     Invalid
 }
-
-
-

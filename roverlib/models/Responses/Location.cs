@@ -16,11 +16,3 @@ public class Location
         throw new NotImplementedException();
     }
 }
-
-public static class LocationExtensions
-{
-    public static int DistanceTo(this Location location, Location otherLocation)
-    {
-        return Math.Abs(location.X - otherLocation.X) + Math.Abs(location.Y - otherLocation.Y);
-    }
-}

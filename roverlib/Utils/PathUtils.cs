@@ -1,10 +1,13 @@
 using System.Collections.Concurrent;
 using Newtonsoft.Json;
 using Priority_Queue;
+using Roverlib.Models;
 using Roverlib.Models.Responses;
 
-public class PathFinder
+public class PathUtils
 {
+    public static int StraightIncentive { get; set; }
+
     private class Node : IComparable<Node>
     {
         public int X { get; set; }
@@ -15,7 +18,8 @@ public class PathFinder
 
         public int CompareTo(Node other)
         {
-            if (other == null) return 1;
+            if (other == null)
+                return 1;
             return (Cost + Heuristic).CompareTo(other.Cost + other.Heuristic);
         }
     }
@@ -26,7 +30,8 @@ public class PathFinder
         (int X, int Y) target,
         Func<(int, int), (int, int), int> heuristicFunction = null,
         int mapOptimizationBuffer = 20,
-        int straightDrivingIncentive = 0)
+        int? straightDrivingIncentive = null
+    )
     {
         if (heuristicFunction == null)
         {
@@ -43,7 +48,17 @@ public class PathFinder
 
         // A* algorithm to find most efficient path
         var heap = new PriorityQueue<Node, int>();
-        heap.Enqueue(new Node { X = start.X, Y = start.Y, Cost = 0, Heuristic = heuristicFunction.Invoke(start, target), Path = new List<(int X, int Y)> { start } }, 0);
+        heap.Enqueue(
+            new Node
+            {
+                X = start.X,
+                Y = start.Y,
+                Cost = 0,
+                Heuristic = heuristicFunction.Invoke(start, target),
+                Path = new List<(int X, int Y)> { start }
+            },
+            0
+        );
         var visited = new HashSet<(int X, int Y)>();
         while (heap.Count > 0)
         {
@@ -67,12 +82,27 @@ public class PathFinder
                     int newCost = node.Cost + map[n];
                     int newHeuristic = heuristicFunction.Invoke(n, target);
                     var newPath = new List<(int X, int Y)>(node.Path);
-                    if (newPath.Count > 1 && (newX - newPath[newPath.Count - 2].Item1) * (newY - newPath[newPath.Count - 2].Item2) != 0)
+                    if (
+                        newPath.Count > 1
+                        && (newX - newPath[newPath.Count - 2].Item1)
+                            * (newY - newPath[newPath.Count - 2].Item2)
+                            != 0
+                    )
                     { // add cost for not driving straight
-                        newCost += straightDrivingIncentive;
+                        newCost += straightDrivingIncentive ?? StraightIncentive;
                     }
                     newPath.Add((newX, newY));
-                    heap.Enqueue(new Node { X = newX, Y = newY, Cost = newCost, Heuristic = newHeuristic, Path = newPath }, newCost + newHeuristic);
+                    heap.Enqueue(
+                        new Node
+                        {
+                            X = newX,
+                            Y = newY,
+                            Cost = newCost,
+                            Heuristic = newHeuristic,
+                            Path = newPath
+                        },
+                        newCost + newHeuristic
+                    );
                 }
             }
         }
@@ -90,14 +120,20 @@ public class PathFinder
         return (int)Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
     }
 
+    public static int EuclideanDistance(Location a, Location b)
+    { // as the crow flies
+        return (int)Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
+    }
+
     public static Dictionary<(int, int), int> GetSubmap(
-    Dictionary<(int, int), int> mapData,
-    (int, int) start,
-    (int, int) target,
-    int width)
+        Dictionary<(int, int), int> mapData,
+        (int, int) start,
+        (int, int) target,
+        int width
+    )
     {
         // Optimize the map by only including the cells that are within the buffer
-        // Compute the slope and intercept 
+        // Compute the slope and intercept
         double m = (double)(target.Item2 - start.Item2) / (double)(target.Item1 - start.Item1);
         double b = (double)start.Item2 - m * (double)start.Item1;
 
@@ -119,7 +155,8 @@ public class PathFinder
                 if (mapData.TryGetValue(pos, out int val))
                 {
                     // check distance to see if it is within the buffer zone
-                    double dist = Math.Abs(m * pos.Item1 - pos.Item2 + b) / Math.Sqrt(Math.Pow(m, 2) + 1);
+                    double dist =
+                        Math.Abs(m * pos.Item1 - pos.Item2 + b) / Math.Sqrt(Math.Pow(m, 2) + 1);
                     if (dist <= width)
                     {
                         submapData[pos] = val;
@@ -133,11 +170,17 @@ public class PathFinder
 
     public static Location GetNearestTarget(Location currentLocation, List<Location> targets)
     {
-        var nearest = targets.OrderBy(t => Math.Abs(t.X - currentLocation.X) + Math.Abs(t.Y - currentLocation.Y)).First();
+        var nearest = targets
+            .OrderBy(t => Math.Abs(t.X - currentLocation.X) + Math.Abs(t.Y - currentLocation.Y))
+            .First();
         return nearest;
     }
 
-    public static int EstimateCostToFinish(Location currentLocation, List<Location> targets, double mapAvgDifficulty)
+    public static int EstimateCostToFinish(
+        Location currentLocation,
+        List<Location> targets,
+        double mapAvgDifficulty
+    )
     {
         // Estimate the cost to finish from current location to all targets by multiplying the distance to travel from target to target by average difficulty of the map
         double totalCost = 0;
@@ -145,11 +188,39 @@ public class PathFinder
         while (targetsCopy.Count > 0)
         {
             var nearest = GetNearestTarget(currentLocation, targetsCopy);
-            totalCost += ManhattanDistance((currentLocation.X, currentLocation.Y), (nearest.X, nearest.Y)) * mapAvgDifficulty;
+            totalCost +=
+                ManhattanDistance((currentLocation.X, currentLocation.Y), (nearest.X, nearest.Y))
+                * mapAvgDifficulty;
             currentLocation = nearest;
             targetsCopy.Remove(nearest);
         }
         return (int)totalCost;
     }
 
+    public static double GetClosestTargetDistanceToEdge(Board gameBoard)
+    {
+        var targets = gameBoard.Targets;
+        var mapWidth = gameBoard.Width;
+        var mapHeight = gameBoard.Height;
+        double minDistance = double.MaxValue;
+
+        foreach (Location target in targets)
+        {
+            double distanceToLeftEdge = target.X;
+            double distanceToRightEdge = mapWidth - target.X;
+            double distanceToTopEdge = target.Y;
+            double distanceToBottomEdge = mapHeight - target.Y;
+
+            double minDistanceToEdge = Math.Min(
+                Math.Min(distanceToLeftEdge, distanceToRightEdge),
+                Math.Min(distanceToTopEdge, distanceToBottomEdge)
+            );
+
+            if (minDistanceToEdge < minDistance)
+            {
+                minDistance = minDistanceToEdge;
+            }
+        }
+        return minDistance;
+    }
 }

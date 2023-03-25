@@ -21,7 +21,9 @@ public class ParametricLine
 
     public List<(int X, int Y)> GetDiscretePointsAlongLine()
     {
-        var points = Enumerable.Range(0, Convert.ToInt32(GetDistance())).Select(p => Fraction((float)p / Convert.ToInt32(GetDistance())));
+        var points = Enumerable
+            .Range(0, Convert.ToInt32(GetDistance()))
+            .Select(p => Fraction((float)p / Convert.ToInt32(GetDistance())));
         return points.Select(p => (Convert.ToInt32(p.X), Convert.ToInt32(p.Y))).ToList();
     }
 
@@ -30,5 +32,3 @@ public class ParametricLine
         return Math.Sqrt(Math.Pow(p2.X - p1.X, 2) + Math.Pow(p2.Y - p1.Y, 2));
     }
 }
-
-

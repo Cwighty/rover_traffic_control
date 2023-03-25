@@ -8,4 +8,3 @@ public class LowResolutionMap
     public int upperRightY { get; set; }
     public int averageDifficulty { get; set; }
 }
-

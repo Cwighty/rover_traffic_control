@@ -12,19 +12,32 @@ public class PerserveranceRover
     private string token;
     private CancellationTokenSource CancelSource;
 
-    public PerserveranceRover(JoinResponse response, HttpClient client, Action<IEnumerable<Neighbor>> updateVisited)
+    public PerserveranceRover(
+        JoinResponse response,
+        HttpClient client,
+        Action<IEnumerable<Neighbor>> updateVisited
+    )
     {
         this.token = response.token;
         Location = new Location(response.startingX, response.startingY);
-        Orientation = Enum.TryParse<Orientation>(response.orientation, out var orient) ? orient : Orientation.North;
+        Orientation = Enum.TryParse<Orientation>(response.orientation, out var orient)
+            ? orient
+            : Orientation.North;
         this.client = client;
         this.InitialBattery = response.batteryLevel;
         this.updateVisited = updateVisited;
-        this.TravelCostEstimate = PathFinder.EstimateCostToFinish(Location, response.targets, response.lowResolutionMap.Average(x => x.averageDifficulty));
+        this.TravelCostEstimate = PathUtils.EstimateCostToFinish(
+            Location,
+            response.targets,
+            response.lowResolutionMap.Average(x => x.averageDifficulty)
+        );
         CancelSource = new CancellationTokenSource();
     }
 
-    public string CurrentLocation { get => $"{Location.X}, {Location.Y}"; }
+    public string CurrentLocation
+    {
+        get => $"{Location.X}, {Location.Y}";
+    }
 
     public int InitialBattery { get; set; }
     public int Battery { get; set; }
@@ -39,7 +52,9 @@ public class PerserveranceRover
 
     public async Task MoveAsync(Direction direction)
     {
-        var res = await client.GetAsync($"/Game/MovePerseverance?token={token}&direction={direction}");
+        var res = await client.GetAsync(
+            $"/Game/MovePerseverance?token={token}&direction={direction}"
+        );
         if (res.IsSuccessStatusCode)
         {
             var result = await res.Content.ReadFromJsonAsync<MoveResponse>();
@@ -126,6 +141,7 @@ public class PerserveranceRover
         }
         catch { }
     }
+
     public async Task DriveAlongPathAsync(Queue<(int X, int Y)> path)
     {
         while (path.Count > 0)
@@ -141,10 +157,10 @@ public class PerserveranceRover
                 if ((Location.X == p.X && Location.Y == p.Y))
                     path.Dequeue();
             }
-            catch
-            { }
+            catch { }
         }
     }
+
     public async Task DriveToNearestAxisAsync(TrafficControlService trafficControl)
     {
         var curLoc = Location;
@@ -152,17 +168,25 @@ public class PerserveranceRover
         var height = trafficControl.GameBoard.Height;
         var midx = width / 2;
         var midy = height / 2;
-        var halfPoints = new List<(int X, int Y)>(){
-        (midx, 0),
-        (midx, height),
-        (0, midy),
-        (width, midy)
-    };
-        var nearestPoint = halfPoints.OrderBy(p => Math.Abs(p.X - curLoc.X) + Math.Abs(p.Y - curLoc.Y)).First();
+        var halfPoints = new List<(int X, int Y)>()
+        {
+            (midx, 0),
+            (midx, height),
+            (0, midy),
+            (width, midy)
+        };
+        var nearestPoint = halfPoints
+            .OrderBy(p => Math.Abs(p.X - curLoc.X) + Math.Abs(p.Y - curLoc.Y))
+            .First();
         await DriveToPointAsync(nearestPoint.X, nearestPoint.Y);
     }
 
-    private async Task PathfindToPointAsync(ConcurrentDictionary<long, Neighbor> map, Location target, Func<(int, int), (int, int), int> heuristic, int optBuffer)
+    private async Task PathfindToPointAsync(
+        ConcurrentDictionary<long, Neighbor> map,
+        Location target,
+        Func<(int, int), (int, int), int> heuristic,
+        int optBuffer
+    )
     {
         while (Location.X != target.X && Location.Y != target.Y)
         {
@@ -170,10 +194,19 @@ public class PerserveranceRover
             while (path.Count == 0)
             {
                 var m = map.ToDictionary(k => (k.Value.X, k.Value.Y), v => v.Value.Difficulty);
-                (path, var cost) = PathFinder.FindPath(m, (Location.X, Location.Y), (target.X, target.Y), heuristic, optBuffer, straightDrivingIncentive);
+                (path, var cost) = PathUtils.FindPath(
+                    m,
+                    (Location.X, Location.Y),
+                    (target.X, target.Y),
+                    heuristic,
+                    optBuffer,
+                    straightDrivingIncentive
+                );
                 if (Battery > cost)
                 {
-                    Console.WriteLine("Initializing straight driving, battery sufficient to drive to target");
+                    Console.WriteLine(
+                        "Initializing straight driving, battery sufficient to drive to target"
+                    );
                     straightDrivingIncentive = 100;
                 }
             }
@@ -181,27 +214,32 @@ public class PerserveranceRover
         }
     }
 
-
-    public void DriveToTargets(ConcurrentDictionary<long, Neighbor> map, List<Location> targets, Func<(int, int), (int, int), int> heuristic = null, int optBuffer = 20)
+    public void DriveToTargets(
+        ConcurrentDictionary<long, Neighbor> map,
+        List<Location> targets,
+        Func<(int, int), (int, int), int> heuristic = null,
+        int optBuffer = 20
+    )
     {
         var localTargets = new List<Location>(targets);
         if (localTargets.Count == 0)
         {
             return;
         }
-        var target = PathFinder.GetNearestTarget(Location, localTargets);
+        var target = PathUtils.GetNearestTarget(Location, localTargets);
         localTargets.Remove(target);
         var task = PathfindToPointAsync(map, target, heuristic, optBuffer);
-        task.ContinueWith((t) =>
-        {
-            straightDrivingIncentive = 0;
-            DriveToTargets(map, localTargets, heuristic, optBuffer);
-        });
+        task.ContinueWith(
+            (t) =>
+            {
+                straightDrivingIncentive = 0;
+                DriveToTargets(map, localTargets, heuristic, optBuffer);
+            }
+        );
     }
 
     public void CancelDrive()
     {
         CancelSource.Cancel();
     }
-
 }

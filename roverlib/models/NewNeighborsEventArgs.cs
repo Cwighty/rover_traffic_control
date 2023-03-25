@@ -1,4 +1,5 @@
 using Roverlib.Models.Responses;
+
 namespace Roverlib.Models;
 
 public class NewNeighborsEventArgs : EventArgs
@@ -7,5 +8,6 @@ public class NewNeighborsEventArgs : EventArgs
     {
         Neighbors = neighbors;
     }
+
     public IEnumerable<Neighbor> Neighbors { get; set; }
 }

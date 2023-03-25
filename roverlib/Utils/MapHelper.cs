@@ -69,6 +69,8 @@ public static class MapHelper
 
     public static void WriteMapToCSV(ConcurrentDictionary<long, Neighbor> map, string path, List<LowResolutionMap> lowResMap)
     {
+        if (map.Count == 0)
+            return;
         var lines = new List<string>();
         var maxX = map.Max(x => x.Value.X);
         var maxY = map.Max(x => x.Value.Y);

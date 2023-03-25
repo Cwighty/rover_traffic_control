@@ -9,6 +9,7 @@ public class Program
     {
         [Option('g', "game", Required = false, HelpText = "Game ID")]
         public string GameId { get; set; } = "a";
+
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
         //public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
         //public string Url { get; set; } = "http://192.168.1.116/";
@@ -19,24 +20,21 @@ public class Program
     {
         var options = Parser.Default.ParseArguments<Options>(args).Value;
         //join the game
-        var client = new HttpClient()
-        {
-            BaseAddress = new Uri(options.Url)
-        };
+        var client = new HttpClient() { BaseAddress = new Uri(options.Url) };
         var trafficControl = new TrafficControlService(client);
         await trafficControl.JoinTeams(1, options.GameId, "Caleb");
         var targets = trafficControl.GameBoard.Targets;
         var rover = trafficControl.Teams[0].Rover;
 
-        while (await trafficControl.CheckStatus() != GameStatus.Playing)
-        {
-        }
+        while (await trafficControl.CheckStatus() != GameStatus.Playing) { }
         while (true)
         {
             //if rover location is a target, remove it
             if (targets.Any(t => t.X == rover.Location.X && t.Y == rover.Location.Y))
             {
-                targets.Remove(targets.First(t => t.X == rover.Location.X && t.Y == rover.Location.Y));
+                targets.Remove(
+                    targets.First(t => t.X == rover.Location.X && t.Y == rover.Location.Y)
+                );
             }
             // display the targets
             DisplayMessage(targets, rover);
@@ -60,11 +58,10 @@ public class Program
                 case ConsoleKey.Spacebar:
                     break;
             }
-
         }
     }
 
-    private static void DisplayMessage(List<Location> targets,  PerserveranceRover rover)
+    private static void DisplayMessage(List<Location> targets, PerserveranceRover rover)
     {
         Console.Clear();
 
@@ -75,12 +72,16 @@ public class Program
             Console.Write($"({target.X}, {target.Y})");
         }
         Console.WriteLine();
-        
+
         Console.Write("Rover: ");
         Console.WriteLine($"({rover.Location.X}, {rover.Location.Y})");
 
         // get the next target
-        var nextTarget = targets.OrderBy(t => PathFinder.EuclideanDistance((t.X, t.Y), (rover.Location.X, rover.Location.Y))).First();
+        var nextTarget = targets
+            .OrderBy(
+                t => PathUtils.EuclideanDistance((t.X, t.Y), (rover.Location.X, rover.Location.Y))
+            )
+            .First();
         Console.WriteLine($"Next Closest Target: ({nextTarget.X}, {nextTarget.Y})");
     }
 }

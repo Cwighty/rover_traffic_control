@@ -21,4 +21,3 @@ public class Neighbor
         return (long)X << 32 | (uint)Y;
     }
 }
-

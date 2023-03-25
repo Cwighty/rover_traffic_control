@@ -10,8 +10,16 @@ public class IngenuityRover
     private HttpClient client;
     private readonly Action<IEnumerable<Neighbor>> updateVisited;
     private string token;
+    private static List<Location> reachedTargets = new();
+    public int Battery { get; set; }
+    public CancellationTokenSource CancelSource { get; private set; }
+    public Location Location { get; set; }
 
-    public IngenuityRover(JoinResponse response, HttpClient client, Action<IEnumerable<Neighbor>> updateVisited)
+    public IngenuityRover(
+        JoinResponse response,
+        HttpClient client,
+        Action<IEnumerable<Neighbor>> updateVisited
+    )
     {
         Location = new Location(response.startingX, response.startingY);
         this.client = client;
@@ -19,15 +27,12 @@ public class IngenuityRover
         this.token = response.token;
         CancelSource = new CancellationTokenSource();
     }
-    public int Battery { get; set; }
-    public CancellationTokenSource CancelSource { get; private set; }
-    public Location Location { get; set; }
-
-    private static List<Location> reachedTargets = new();
 
     public async Task MoveAsync(int X, int Y)
     {
-        var res = await client.GetAsync($"/Game/MoveIngenuity?token={token}&destinationRow={X}&destinationColumn={Y}");
+        var res = await client.GetAsync(
+            $"/Game/MoveIngenuity?token={token}&destinationRow={X}&destinationColumn={Y}"
+        );
         if (res.IsSuccessStatusCode)
         {
             var result = await res.Content.ReadFromJsonAsync<MoveResponse>();
@@ -59,20 +64,22 @@ public class IngenuityRover
             CancelFlight();
             return;
         }
-        var target = PathFinder.GetNearestTarget(Location, localTargets);
+        var target = PathUtils.GetNearestTarget(Location, localTargets);
         localTargets.Remove(target);
         var task = MoveToPointAsync(target);
 
-        await task.ContinueWith(async (t) =>
-        {
-            // if (!reachedTargets.Contains(target) && localTargets.Count > 0)
-            // { // Shut off the first heli to reach the target to save rate limiting for frontrunners
-            //     reachedTargets.Add(target);
-            //     Console.WriteLine($"Heli {token} reached target {target.X}, {target.Y}");
-            //     CancelFlight();
-            // }
-            await FlyToTargets(localTargets);
-        });
+        await task.ContinueWith(
+            async (t) =>
+            {
+                // if (!reachedTargets.Contains(target) && localTargets.Count > 0)
+                // { // Shut off the first heli to reach the target to save rate limiting for frontrunners
+                //     reachedTargets.Add(target);
+                //     Console.WriteLine($"Heli {token} reached target {target.X}, {target.Y}");
+                //     CancelFlight();
+                // }
+                await FlyToTargets(localTargets);
+            }
+        );
     }
 
     public async Task FlyToReconPoints(List<Location> targets)
@@ -82,14 +89,16 @@ public class IngenuityRover
             CancelFlight();
             return;
         }
-        var target = PathFinder.GetNearestTarget(Location, targets);
+        var target = PathUtils.GetNearestTarget(Location, targets);
         targets.Remove(target);
         var task = MoveToPointAsync(target);
 
-        await task.ContinueWith(async (t) =>
-        {
-            await FlyToReconPoints(targets);
-        });
+        await task.ContinueWith(
+            async (t) =>
+            {
+                await FlyToReconPoints(targets);
+            }
+        );
     }
 
     public async Task MoveToPointAsync(Location point)
@@ -114,9 +123,7 @@ public class IngenuityRover
                 path.Dequeue();
                 path.Dequeue();
             }
-            catch
-            {
-            }
+            catch { }
         }
         await MoveAsync(point.X, point.Y);
     }
@@ -128,13 +135,16 @@ public class IngenuityRover
         var height = trafficControl.GameBoard.Height;
         var midx = width / 2;
         var midy = height / 2;
-        var halfPoints = new List<(int X, int Y)>(){
+        var halfPoints = new List<(int X, int Y)>()
+        {
             (midx, 0),
             (midx, height),
             (0, midy),
             (width, midy)
         };
-        var nearestPoint = halfPoints.OrderBy(p => Math.Abs(p.X - curLoc.X) + Math.Abs(p.Y - curLoc.Y)).First();
+        var nearestPoint = halfPoints
+            .OrderBy(p => Math.Abs(p.X - curLoc.X) + Math.Abs(p.Y - curLoc.Y))
+            .First();
         await MoveToPointAsync(new Location(nearestPoint.X, nearestPoint.Y));
     }
 

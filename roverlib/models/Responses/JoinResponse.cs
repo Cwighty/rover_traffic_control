@@ -11,4 +11,3 @@ public class JoinResponse
     public List<Location> targets { get; set; }
     public int batteryLevel { get; set; }
 }
-
