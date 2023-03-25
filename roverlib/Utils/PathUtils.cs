@@ -131,49 +131,27 @@ public class PathUtils
         Dictionary<long, Neighbor> mapData,
         (int, int) start,
         (int, int) target,
-        int width
+        int buffer
     )
     {
-        // Optimize the map by only including the cells that are within the buffer
-        // Compute the slope and intercept
-        double m = (double)(target.Item2 - start.Item2) / (double)(target.Item1 - start.Item1);
-        if (double.IsInfinity(m))
+        var map = new Dictionary<(int X, int Y), int>();
+        if (mapData.Count == 0)
+            return map;
+        for (int x = start.Item1; x <= target.Item1; x++)
         {
-            m = 0;
+            var n = new Neighbor() { X = x, Y = start.Item2 };
+            if (mapData.TryGetValue(n.HashToLong(), out var neighbor))
+                map.Add((x, start.Item2), neighbor.Difficulty);
         }
-        double b = (double)start.Item2 - m * (double)start.Item1;
+        return map;
+    }
 
-        // Determine the range of rows and columns to include in the submap
-        int minRow = Math.Min(start.Item1, target.Item1) - width;
-        int maxRow = Math.Max(start.Item1, target.Item1) + width;
-        int minCol = Math.Min(start.Item2, target.Item2) - width;
-        int maxCol = Math.Max(start.Item2, target.Item2) + width;
-
-        Dictionary<long, Neighbor> submapData = new Dictionary<long, Neighbor>();
-
-        // Iterate over the rows and columns of the map and copy the cells that
-        // fall within the range and the "buffer zone" to the submap
-        for (int rowIdx = minRow; rowIdx <= maxRow; rowIdx++)
-        {
-            for (int colIdx = minCol; colIdx <= maxCol; colIdx++)
-            {
-                Neighbor pos = new Neighbor { X = rowIdx, Y = colIdx };
-                if (mapData.TryGetValue(pos.HashToLong(), out Neighbor val))
-                {
-                    // check distance to see if it is within the buffer zone
-                    double dist = Math.Abs(m * pos.X - pos.Y + b) / Math.Sqrt(Math.Pow(m, 2) + 1);
-                    if (dist <= width)
-                    {
-                        submapData[pos.HashToLong()] = val;
-                    }
-                }
-            }
-        }
-
-        return submapData.ToDictionary(
-            kvp => (kvp.Value.X, kvp.Value.Y),
-            kvp => kvp.Value.Difficulty
-        );
+    private static int getMapDataAt((int X, int Y) point, Dictionary<long, Neighbor> mapData)
+    {
+        var n = new Neighbor() { X = point.X, Y = point.Y };
+        return mapData.TryGetValue(n.HashToLong(), out var neighbor)
+            ? neighbor.Difficulty
+            : int.MaxValue;
     }
 
     public static Location GetNearestTarget(Location currentLocation, List<Location> targets)
