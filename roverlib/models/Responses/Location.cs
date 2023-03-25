@@ -11,8 +11,14 @@ public class Location
     public int X { get; private set; }
     public int Y { get; private set; }
 
-    internal object DistanceTo(object location)
+    override public bool Equals(object obj)
     {
-        throw new NotImplementedException();
+        if (obj == null || GetType() != obj.GetType())
+        {
+            return false;
+        }
+
+        Location other = (Location)obj;
+        return (X == other.X) && (Y == other.Y);
     }
 }

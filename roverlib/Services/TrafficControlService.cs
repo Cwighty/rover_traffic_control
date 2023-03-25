@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Json;
 using Roverlib.Models;
 using Roverlib.Models.Responses;
+using Roverlib.Utils;
 
 namespace Roverlib.Services;
 

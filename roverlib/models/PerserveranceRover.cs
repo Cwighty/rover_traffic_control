@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using Roverlib.Models.Responses;
 using Roverlib.Services;
+using Roverlib.Utils;
 
 namespace Roverlib.Models;
 

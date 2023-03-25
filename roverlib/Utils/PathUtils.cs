@@ -4,6 +4,8 @@ using Priority_Queue;
 using Roverlib.Models;
 using Roverlib.Models.Responses;
 
+namespace Roverlib.Utils;
+
 public class PathUtils
 {
     public static int StraightIncentive { get; set; }

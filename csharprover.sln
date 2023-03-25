@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "roverlib", "roverlib\roverl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "manual", "manual\manual.csproj", "{A4C0DD36-C2B7-4C34-8948-47ECF54B3EAD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{AA1C443A-EA34-4D8C-956B-619EF2398FDC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{A4C0DD36-C2B7-4C34-8948-47ECF54B3EAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4C0DD36-C2B7-4C34-8948-47ECF54B3EAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4C0DD36-C2B7-4C34-8948-47ECF54B3EAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA1C443A-EA34-4D8C-956B-619EF2398FDC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA1C443A-EA34-4D8C-956B-619EF2398FDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA1C443A-EA34-4D8C-956B-619EF2398FDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA1C443A-EA34-4D8C-956B-619EF2398FDC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

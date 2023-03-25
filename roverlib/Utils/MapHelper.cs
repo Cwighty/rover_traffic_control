@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text;
 using Roverlib.Models.Responses;
-
+namespace Roverlib.Utils;
 public static class MapHelper
 {
     public static ConcurrentDictionary<long, Neighbor> InitializeMap(List<LowResolutionMap> lowResolutionMap)

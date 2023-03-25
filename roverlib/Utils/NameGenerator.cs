@@ -1,7 +1,11 @@
-public static class NameGenerator{
-public static string Generate()
+namespace Roverlib.Utils;
+
+public static class NameGenerator
+{
+    public static string Generate()
     {
-        var animals = new HashSet<string>{
+        var animals = new HashSet<string>
+        {
             "Aardvark",
             "Albatross",
             "Alligator",
@@ -112,7 +116,8 @@ public static string Generate()
             "Koala",
             "Kookabura",
         };
-        var letterAdjectives = new HashSet<string>{
+        var letterAdjectives = new HashSet<string>
+        {
             "Abundant",
             "Bountiful",
             "Coveted",
@@ -190,5 +195,4 @@ public static string Generate()
         var letterAdjective = letterAdjectives.ElementAt(random.Next(letterAdjectives.Count));
         return $"{letterAdjective}{animal}";
     }
-
 }

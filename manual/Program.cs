@@ -2,6 +2,7 @@
 using Roverlib.Models;
 using Roverlib.Models.Responses;
 using Roverlib.Services;
+using Roverlib.Utils;
 
 public class Program
 {

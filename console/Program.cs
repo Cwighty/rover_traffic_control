@@ -1,6 +1,7 @@
 ﻿using CommandLine;
 using Roverlib.Models;
 using Roverlib.Services;
+using Roverlib.Utils;
 
 internal partial class Program
 {
