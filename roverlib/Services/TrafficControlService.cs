@@ -16,6 +16,8 @@ public partial class TrafficControlService
     public List<RoverTeam> ReconTeams { get; private set; } = new();
     public Board GameBoard { get; set; }
 
+    public List<Location> TargetRoute { get; set; } = new();
+
     public EventHandler GameWonEvent { get; set; }
 
     public TrafficControlService(HttpClient client)
@@ -34,6 +36,10 @@ public partial class TrafficControlService
             var res = await result.Content.ReadFromJsonAsync<JoinResponse>();
             if (GameBoard == null)
                 GameBoard = new Board(res);
+            if (TargetRoute.Count == 0)
+                TargetRoute = new List<Location>(
+                    TravelingSalesman.GetShortestRoute(GameBoard.Targets)
+                );
             var newGame = new RoverTeam(name, gameid, res, client);
             newGame.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
             center = GameBoard.Targets[0];
@@ -75,14 +81,18 @@ public partial class TrafficControlService
     }
 
     public async Task JoinUntilClose(string gameId, int numToDrive, int maxTeams = 50)
-    {
+    { //Initialize game by joining one team
         var teams = new List<RoverTeam>();
         if (GameBoard == null)
         {
             teams.Add(await JoinNewGame(NameGenerator.Generate(), gameId));
         }
 
-        while (!IsThereARoverCloseToTarget(teams))
+        //Figure out best starting target
+        var bestStartingTarget = TargetRoute[0];
+
+        //Join teams until there is a rover close to the best starting target
+        while (!IsThereARoverCloseToTarget(teams, bestStartingTarget))
         {
             if (teams.Count >= maxTeams)
             {
@@ -91,31 +101,28 @@ public partial class TrafficControlService
             var team = await JoinNewGame(NameGenerator.Generate(), gameId);
             teams.Add(team);
         }
-        var closestRovers = OrderByDistanceToTarget(teams);
-        var ventureurs = closestRovers.Take(numToDrive).ToList();
-        ventureurs.ForEach(
+
+        var closestRovers = OrderByDistanceToTarget(teams, bestStartingTarget);
+
+        var roverVentureurs = closestRovers.Take(numToDrive).ToList();
+        roverVentureurs.ForEach(
             x => x.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty)
         );
+        Teams.AddRange(roverVentureurs);
 
-        Teams.AddRange(ventureurs);
+        //Add the rest for heli recon later
         ReconTeams.AddRange(teams);
     }
 
-    private List<RoverTeam> OrderByDistanceToTarget(List<RoverTeam> teams)
+    private List<RoverTeam> OrderByDistanceToTarget(List<RoverTeam> teams, Location bestTarget)
     {
-        var targets = GameBoard.Targets;
-        var roverDistances = new List<(RoverTeam, int)>();
+        var teamDistances = new Dictionary<RoverTeam, int>();
         foreach (var team in teams)
         {
-            var rover = team.Rover;
-            var roverLocation = rover.Location;
-            foreach (var target in targets)
-            {
-                var distance = PathUtils.EuclideanDistance(roverLocation, target);
-                roverDistances.Add((team, distance));
-            }
+            var distance = PathUtils.EuclideanDistance(team.Rover.Location, bestTarget);
+            teamDistances.Add(team, distance);
         }
-        return roverDistances.OrderBy(x => x.Item2).Select(x => x.Item1).ToList();
+        return teamDistances.OrderBy(x => x.Value).Select(x => x.Key).ToList();
     }
 
     private void onNewNeighbors(NewNeighborsEventArgs args)
@@ -163,11 +170,12 @@ public partial class TrafficControlService
     {
         foreach (var team in Teams)
         {
+            //Include the rovers current location as a target
             var task = Task.Run(
                 () =>
                     team.Rover.DriveToTargets(
                         GameBoard.VisitedNeighbors,
-                        GameBoard.Targets,
+                        TargetRoute,
                         heuristic,
                         optBuffer
                     )
@@ -250,21 +258,24 @@ public partial class TrafficControlService
         return nearestLocations;
     }
 
-    private bool IsThereARoverCloseToTarget(List<RoverTeam> teams)
+    private bool IsThereARoverCloseToTarget(
+        List<RoverTeam> teams,
+        Location target,
+        int minDistance = 5
+    )
     {
-        var targets = GameBoard.Targets;
-        var closestDistance = PathUtils.GetClosestTargetDistanceToEdge(GameBoard);
+        var distanceToEdge = Math.Min(
+            Math.Min(target.X, GameBoard.Width - target.X),
+            Math.Min(target.Y, GameBoard.Height - target.Y)
+        );
         foreach (var team in teams)
         {
-            var rover = team.Rover;
-            var roverLocation = rover.Location;
-            foreach (var target in targets)
+            if (
+                PathUtils.ManhattanDistance(team.Rover.Location, target)
+                <= distanceToEdge + minDistance
+            )
             {
-                var distance = PathUtils.EuclideanDistance(roverLocation, target);
-                if (distance <= closestDistance)
-                {
-                    return true;
-                }
+                return true;
             }
         }
         return false;

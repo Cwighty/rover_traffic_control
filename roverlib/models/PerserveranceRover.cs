@@ -192,7 +192,6 @@ public class PerserveranceRover
         while (Location != target)
         {
             var path = new List<(int, int)>();
-            var m = new Dictionary<long, Neighbor>(map);
             while (path.Count == 0)
             {
                 if (Location == target)
@@ -200,20 +199,13 @@ public class PerserveranceRover
                     return;
                 }
                 (path, var cost) = PathUtils.FindPath(
-                    m,
+                    map,
                     (Location.X, Location.Y),
                     (target.X, target.Y),
                     heuristic,
                     optBuffer,
                     straightDrivingIncentive
                 );
-                if (Battery > cost)
-                {
-                    Console.WriteLine(
-                        "Initializing straight driving, battery sufficient to drive to target"
-                    );
-                    straightDrivingIncentive = 100;
-                }
             }
             await DriveAlongPathAsync(path.ToQueue());
         }
@@ -226,9 +218,9 @@ public class PerserveranceRover
         int optBuffer = 20
     )
     {
-        var localTargets = new List<Location>(TravelingSalesman.GetShortestRoute(targets));
+        var localTargets = new List<Location>(targets);
         Console.WriteLine(
-            $"The shortest route has targets in this order: {string.Join(", ", localTargets)}"
+            $"Targets will be driven in this order: {string.Join(", ", localTargets)}"
         );
         if (localTargets.Count == 0)
         {

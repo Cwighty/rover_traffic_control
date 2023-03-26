@@ -11,13 +11,13 @@ internal partial class Program
         public int MaxTeams { get; set; } = 50;
 
         [Option('g', "game", Required = false, HelpText = "Game ID")]
-        public string GameId { get; set; } = "q";
+        public string GameId { get; set; } = "a";
 
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
-        public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
+        //public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
 
         //public string Url { get; set; } = "http://192.168.1.116/";
-        //public string Url { get; set; } = "https://localhost:7287/";
+        public string Url { get; set; } = "https://localhost:7287/";
 
         [Option(
             'e',

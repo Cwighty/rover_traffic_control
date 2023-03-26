@@ -64,7 +64,9 @@ public class IngenuityRover
             CancelFlight();
             return;
         }
-        var target = PathUtils.GetNearestTarget(Location, localTargets);
+        targets.Insert(0, Location);
+        localTargets = TravelingSalesman.GetShortestRoute(localTargets);
+        var target = localTargets[0];
         localTargets.Remove(target);
         var task = MoveToPointAsync(target);
 

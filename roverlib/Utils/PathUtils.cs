@@ -1,6 +1,4 @@
 using System.Collections.Concurrent;
-using Newtonsoft.Json;
-using Priority_Queue;
 using Roverlib.Models;
 using Roverlib.Models.Responses;
 
@@ -27,7 +25,7 @@ public class PathUtils
     }
 
     public static (List<(int X, int Y)>, int) FindPath(
-        Dictionary<long, Neighbor> cmap,
+        ConcurrentDictionary<long, Neighbor> cmap,
         (int X, int Y) start,
         (int X, int Y) target,
         Func<(int, int), (int, int), int> heuristicFunction = null,
@@ -117,6 +115,11 @@ public class PathUtils
         return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
     }
 
+    public static int ManhattanDistance(Location a, Location b)
+    { // as the cars drive
+        return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+    }
+
     public static int EuclideanDistance((int X, int Y) a, (int X, int Y) b)
     { // as the crow flies
         return (int)Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
@@ -128,7 +131,7 @@ public class PathUtils
     }
 
     public static Dictionary<(int X, int Y), int> GetSubmap(
-        Dictionary<long, Neighbor> mapData,
+        ConcurrentDictionary<long, Neighbor> mapData,
         (int, int) start,
         (int, int) target,
         int buffer
@@ -137,9 +140,9 @@ public class PathUtils
         var map = new Dictionary<(int X, int Y), int>();
         if (mapData.Count == 0)
             return map;
-       // take the smaller values from start and target
+        // take the smaller values from start and target
         var minStart = (Math.Min(start.Item1, target.Item1), Math.Min(start.Item2, target.Item2));
-        var maxTarget = (Math.Max(start.Item1, target.Item1), Math.Max(start.Item2, target.Item2)); 
+        var maxTarget = (Math.Max(start.Item1, target.Item1), Math.Max(start.Item2, target.Item2));
         for (int x = minStart.Item1; x <= maxTarget.Item1; x++)
         {
             for (int y = minStart.Item2; y <= maxTarget.Item2; y++)
