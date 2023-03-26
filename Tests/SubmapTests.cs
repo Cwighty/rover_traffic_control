@@ -87,6 +87,31 @@ public class SubmapTests
         );
     }
 
+    [Test]
+    public void GetSubmap_WhenStartHigherThanTarget()
+    {
+        var Neighbors = CreateNeighbor(3, 3);
+        var map = CreateMap(Neighbors);
+
+        var submap = PathUtils.GetSubmap(map, (2, 2), (0, 0), 1);
+        AssertSubmap(
+            submap,
+            new[] { (0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1), (0, 2), (1, 2), (2, 2) },
+            new[]
+            {
+                Neighbors[0].Difficulty,
+                Neighbors[1].Difficulty,
+                Neighbors[2].Difficulty,
+                Neighbors[3].Difficulty,
+                Neighbors[4].Difficulty,
+                Neighbors[5].Difficulty,
+                Neighbors[6].Difficulty,
+                Neighbors[7].Difficulty,
+                Neighbors[8].Difficulty
+            }
+        );
+    }
+
     private void AssertSubmap(
         Dictionary<(int x, int y), int> submap,
         (int x, int y)[] expectedKeys,

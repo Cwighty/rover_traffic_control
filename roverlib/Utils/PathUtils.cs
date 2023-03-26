@@ -137,16 +137,20 @@ public class PathUtils
         var map = new Dictionary<(int X, int Y), int>();
         if (mapData.Count == 0)
             return map;
-        for (int x = start.Item1; x <= target.Item1; x++)
+       // take the smaller values from start and target
+        var minStart = (Math.Min(start.Item1, target.Item1), Math.Min(start.Item2, target.Item2));
+        var maxTarget = (Math.Max(start.Item1, target.Item1), Math.Max(start.Item2, target.Item2)); 
+        for (int x = minStart.Item1; x <= maxTarget.Item1; x++)
         {
-            for (int y = start.Item2; y <= target.Item2; y++)
+            for (int y = minStart.Item2; y <= maxTarget.Item2; y++)
             {
                 for (int i = -buffer; i <= buffer; i++)
                 {
                     for (int j = -buffer; j <= buffer; j++)
                     {
                         var n = new Neighbor() { X = x + i, Y = y + j };
-                        if (mapData.TryGetValue(n.HashToLong(), out var neighbor))
+                        mapData.TryGetValue(n.HashToLong(), out var neighbor);
+                        if (neighbor != null)
                             map.TryAdd((x + i, y + j), neighbor.Difficulty);
                     }
                 }
