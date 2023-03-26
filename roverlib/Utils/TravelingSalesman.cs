@@ -74,4 +74,86 @@ public static class TravelingSalesman
 
         return totalDistance;
     }
+
+    public static List<Location> GetClosestEdgePoints(
+        List<Location> locations,
+        int mapWidth,
+        int mapHeight
+    )
+    {
+        var closestEdgePoints = new List<Location>();
+
+        foreach (var target in locations)
+        {
+            double closestDistance = double.MaxValue;
+            Location closestEdgePoint = null;
+
+            // Check top and bottom edges
+            for (int x = 0; x < mapWidth; x++)
+            {
+                double distanceToEdge = PathUtils.EuclideanDistance(target, new Location(x, 0));
+                if (distanceToEdge < closestDistance)
+                {
+                    closestDistance = distanceToEdge;
+                    closestEdgePoint = new Location(x, 0);
+                }
+
+                distanceToEdge = PathUtils.EuclideanDistance(
+                    target,
+                    new Location(x, mapHeight - 1)
+                );
+                if (distanceToEdge < closestDistance)
+                {
+                    closestDistance = distanceToEdge;
+                    closestEdgePoint = new Location(x, mapHeight - 1);
+                }
+            }
+
+            // Check left and right edges
+            for (int y = 0; y < mapHeight; y++)
+            {
+                double distanceToEdge = PathUtils.EuclideanDistance(target, new Location(0, y));
+                if (distanceToEdge < closestDistance)
+                {
+                    closestDistance = distanceToEdge;
+                    closestEdgePoint = new Location(0, y);
+                }
+
+                distanceToEdge = PathUtils.EuclideanDistance(target, new Location(mapWidth - 1, y));
+                if (distanceToEdge < closestDistance)
+                {
+                    closestDistance = distanceToEdge;
+                    closestEdgePoint = new Location(mapWidth - 1, y);
+                }
+            }
+
+            closestEdgePoints.Add(closestEdgePoint);
+        }
+
+        return closestEdgePoints;
+    }
+
+    public static List<Location> GetBestRoute(List<Location> locations, int mapWidth, int mapHeight)
+    {
+        var closestEdgePoints = GetClosestEdgePoints(locations, mapWidth, mapHeight);
+        var bestRoute = new List<Location>();
+        var bestRouteDistance = double.MaxValue;
+        var permutations = GetPermutations(locations);
+        foreach (var edgePoint in closestEdgePoints)
+        {
+            foreach (var permutation in permutations)
+            {
+                var route = new List<Location>();
+                route.Add(edgePoint);
+                route.AddRange(permutation);
+                var distance = GetDistance(route);
+                if (distance < bestRouteDistance)
+                {
+                    bestRouteDistance = distance;
+                    bestRoute = route;
+                }
+            }
+        }
+        return bestRoute;
+    }
 }

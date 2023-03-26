@@ -38,7 +38,11 @@ public partial class TrafficControlService
                 GameBoard = new Board(res);
             if (TargetRoute.Count == 0)
                 TargetRoute = new List<Location>(
-                    TravelingSalesman.GetShortestRoute(GameBoard.Targets)
+                    TravelingSalesman.GetBestRoute(
+                        GameBoard.Targets,
+                        GameBoard.Width,
+                        GameBoard.Height
+                    )
                 );
             var newGame = new RoverTeam(name, gameid, res, client);
             newGame.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
@@ -103,6 +107,7 @@ public partial class TrafficControlService
         }
 
         var closestRovers = OrderByDistanceToTarget(teams, bestStartingTarget);
+        TargetRoute.RemoveAt(0);
 
         var roverVentureurs = closestRovers.Take(numToDrive).ToList();
         roverVentureurs.ForEach(
