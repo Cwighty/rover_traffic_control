@@ -139,9 +139,18 @@ public class PathUtils
             return map;
         for (int x = start.Item1; x <= target.Item1; x++)
         {
-            var n = new Neighbor() { X = x, Y = start.Item2 };
-            if (mapData.TryGetValue(n.HashToLong(), out var neighbor))
-                map.Add((x, start.Item2), neighbor.Difficulty);
+            for (int y = start.Item2; y <= target.Item2; y++)
+            {
+                for (int i = -buffer; i <= buffer; i++)
+                {
+                    for (int j = -buffer; j <= buffer; j++)
+                    {
+                        var n = new Neighbor() { X = x + i, Y = y + j };
+                        if (mapData.TryGetValue(n.HashToLong(), out var neighbor))
+                            map.TryAdd((x + i, y + j), neighbor.Difficulty);
+                    }
+                }
+            }
         }
         return map;
     }

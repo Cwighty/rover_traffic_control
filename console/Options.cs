@@ -11,7 +11,7 @@ internal partial class Program
         public int MaxTeams { get; set; } = 50;
 
         [Option('g', "game", Required = false, HelpText = "Game ID")]
-        public string GameId { get; set; } = "n";
+        public string GameId { get; set; } = "p";
 
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
         public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
