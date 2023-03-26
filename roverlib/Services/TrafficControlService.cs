@@ -47,6 +47,12 @@ public partial class TrafficControlService
         }
         else
         {
+            if (result.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                Console.WriteLine("Too many requests, waiting 1 seconds");
+                await Task.Delay(1000);
+                return await JoinNewGame(name, gameid);
+            }
             var res = new ProblemDetail();
             try
             {
@@ -56,12 +62,6 @@ public partial class TrafficControlService
             {
                 res.Title = result.ReasonPhrase;
                 res.Detail = result.StatusCode.ToString();
-            }
-            if (res.Detail.Contains("TooManyRequests"))
-            {
-                Console.WriteLine("Too many requests, waiting 1 seconds");
-                await Task.Delay(1000);
-                return await JoinNewGame(name, gameid);
             }
             Console.WriteLine(res.Detail);
             throw new ProblemDetailException(res);
@@ -189,7 +189,7 @@ public partial class TrafficControlService
     {
         foreach (var team in Teams)
         {
-            var task = Task.Run(() => team.Heli.FlyToTargets(GameBoard.Targets));
+            var task = Task.Run(() => team.Heli.FlyToTargets(TargetRoute));
         }
     }
 

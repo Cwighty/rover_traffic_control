@@ -64,11 +64,10 @@ public class IngenuityRover
             CancelFlight();
             return;
         }
-        targets.Insert(0, Location);
-        localTargets = TravelingSalesman.GetShortestRoute(localTargets);
-        var target = localTargets[0];
-        localTargets.Remove(target);
-        var task = MoveToPointAsync(target);
+
+        var nextTarget = localTargets.First();
+        localTargets.Remove(nextTarget);
+        var task = MoveToPointAsync(nextTarget);
 
         await task.ContinueWith(
             async (t) =>
@@ -127,7 +126,11 @@ public class IngenuityRover
             }
             catch { }
         }
-        await MoveAsync(point.X, point.Y);
+        try
+        {
+            await MoveAsync(point.X, point.Y);
+        }
+        catch { }
     }
 
     public async Task FlyToNearestAxisAsync(TrafficControlService trafficControl)

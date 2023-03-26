@@ -206,7 +206,12 @@ public class PerserveranceRover
                     optBuffer,
                     straightDrivingIncentive
                 );
+                if (Battery > cost)
+                {
+                    straightDrivingIncentive = 100;
+                }
             }
+
             await DriveAlongPathAsync(path.ToQueue());
         }
     }
