@@ -140,26 +140,63 @@ public class PathUtils
         var map = new Dictionary<(int X, int Y), int>();
         if (mapData.Count == 0)
             return map;
-        // take the smaller values from start and target
-        var minStart = (Math.Min(start.Item1, target.Item1), Math.Min(start.Item2, target.Item2));
-        var maxTarget = (Math.Max(start.Item1, target.Item1), Math.Max(start.Item2, target.Item2));
-        for (int x = minStart.Item1; x <= maxTarget.Item1; x++)
+
+        // Determine the points along the line using Bresenham's algorithm
+        var linePoints = BresenhamLine(start.Item1, start.Item2, target.Item1, target.Item2);
+
+        // Add the points along the line and their buffer zones to the map
+        foreach (var point in linePoints)
         {
-            for (int y = minStart.Item2; y <= maxTarget.Item2; y++)
+            for (int i = -buffer; i <= buffer; i++)
             {
-                for (int i = -buffer; i <= buffer; i++)
+                for (int j = -buffer; j <= buffer; j++)
                 {
-                    for (int j = -buffer; j <= buffer; j++)
-                    {
-                        var n = new Neighbor() { X = x + i, Y = y + j };
-                        mapData.TryGetValue(n.HashToLong(), out var neighbor);
-                        if (neighbor != null)
-                            map.TryAdd((x + i, y + j), neighbor.Difficulty);
-                    }
+                    var x = point.Item1 + i;
+                    var y = point.Item2 + j;
+
+                    // Check if the cell is within the map data and add it to the map
+                    mapData.TryGetValue(
+                        new Neighbor { X = x, Y = y }.HashToLong(),
+                        out var neighborData
+                    );
+                    if (neighborData != null)
+                        map.TryAdd((x, y), neighborData.Difficulty);
                 }
             }
         }
+
         return map;
+    }
+
+    private static List<(int, int)> BresenhamLine(int x0, int y0, int x1, int y1)
+    {
+        var linePoints = new List<(int, int)>();
+        int dx = Math.Abs(x1 - x0),
+            sx = x0 < x1 ? 1 : -1;
+        int dy = Math.Abs(y1 - y0),
+            sy = y0 < y1 ? 1 : -1;
+        int err = dx - dy;
+
+        while (true)
+        {
+            linePoints.Add((x0, y0));
+
+            if (x0 == x1 && y0 == y1)
+                break;
+            int e2 = 2 * err;
+            if (e2 > -dy)
+            {
+                err -= dy;
+                x0 += sx;
+            }
+            if (e2 < dx)
+            {
+                err += dx;
+                y0 += sy;
+            }
+        }
+
+        return linePoints;
     }
 
     private static int getMapDataAt((int X, int Y) point, Dictionary<long, Neighbor> mapData)

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using FluentAssertions;
 using Roverlib.Models.Responses;
 using Roverlib.Utils;
@@ -9,18 +10,18 @@ public class SubmapTests
     [Test]
     public void GetSubmap_ShouldReturnEmpty_WhenGivenEmptyMap()
     {
-        var map = new Dictionary<long, Neighbor>();
+        var map = new ConcurrentDictionary<long, Neighbor>();
         var submap = PathUtils.GetSubmap(map, (0, 0), (0, 0), 0);
         submap.Should().BeEmpty();
     }
 
     [Test]
-    public void GetSubmap_ShouldReturnStraightLine_WhenNoBuffer()
+    public void GetSubmap_ShouldReturnStraightLine()
     {
         List<Neighbor> Neighbors = CreateNeighbor(2, 1);
-        Dictionary<long, Neighbor> map = CreateMap(Neighbors);
+        var map = CreateMap(Neighbors);
 
-        var submap = PathUtils.GetSubmap(map, (0, 0), (1, 0), 0);
+        var submap = PathUtils.GetSubmap(map, (0, 0), (1, 0), 1);
         AssertSubmap(
             submap,
             new[] { (0, 0), (1, 0) },
@@ -29,12 +30,12 @@ public class SubmapTests
     }
 
     [Test]
-    public void GetSubmap_ShouldReturnStraightLine_WhenNoBuffer_ThreeNeighbors()
+    public void GetSubmap_ShouldReturnStraightLine_ThreeNeighbors()
     {
         List<Neighbor> Neighbors = CreateNeighbor(3, 1);
-        Dictionary<long, Neighbor> map = CreateMap(Neighbors);
+        var map = CreateMap(Neighbors);
 
-        var submap = PathUtils.GetSubmap(map, (0, 0), (2, 0), 0);
+        var submap = PathUtils.GetSubmap(map, (0, 0), (2, 0), 1);
         AssertSubmap(
             submap,
             new[] { (0, 0), (1, 0), (2, 0) },
@@ -132,7 +133,7 @@ public class SubmapTests
         var neighbors = CreateNeighbor(3, 3);
         var map = CreateMap(neighbors);
 
-        var submap = PathUtils.GetSubmap(map, (0, 0), (1, 1), 2);
+        var submap = PathUtils.GetSubmap(map, (0, 0), (1, 1), 3);
 
         submap.Should().HaveCount(9);
 
@@ -175,8 +176,10 @@ public class SubmapTests
         return Neighbors;
     }
 
-    private static Dictionary<long, Neighbor> CreateMap(List<Neighbor> Neighbors)
+    private static ConcurrentDictionary<long, Neighbor> CreateMap(List<Neighbor> Neighbors)
     {
-        return Neighbors.Select(n => (n.HashToLong(), n)).ToDictionary(x => x.Item1, x => x.n);
+        return new ConcurrentDictionary<long, Neighbor>(
+            Neighbors.Select(n => (n.HashToLong(), n)).ToDictionary(x => x.Item1, x => x.n)
+        );
     }
 }
