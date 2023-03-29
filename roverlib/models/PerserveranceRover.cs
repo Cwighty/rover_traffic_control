@@ -76,6 +76,10 @@ public class PerserveranceRover
                 var result = await res.Content.ReadFromJsonAsync<ProblemDetail>();
                 throw new ProblemDetailException(result);
             }
+            else
+            {
+                Thread.Sleep(1000);
+            }
         }
     }
 
