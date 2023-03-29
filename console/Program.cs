@@ -20,7 +20,7 @@ internal partial class Program
             PathUtils.StraightIncentive = 100;
 
         HttpClient client = new HttpClient() { BaseAddress = new Uri(gameOptions.Url) };
-        var trafficControl = new TrafficControlService(client);
+        var trafficControl = new TrafficControlService(client, gameOptions.QuickMode);
 
         trafficControl.GameWonEvent += async (sender, e) =>
         {
@@ -36,28 +36,24 @@ internal partial class Program
         var filePath =
             $"../maps/{MapHelper.GetFileNameFromMap(trafficControl.GameBoard.LowResMap)}";
         Console.WriteLine($"Map file path: {filePath}");
-        await waitForPlayingStatusAsync(trafficControl);
 
         if (File.Exists(filePath))
         {
             InitializeMapWithCachedFile(trafficControl, filePath);
         }
+        
+        await waitForPlayingStatusAsync(trafficControl);
+
+        if (gameOptions.QuickMode)
+        {
+            trafficControl.DriveRoversStraightToTargets();
+        }
         else
         {
-            if (gameOptions.QuickMode)
-            {
-                if (!IsMapCached)
-                    InitalizeMapWithLowResMap(trafficControl);
-                //Dont fly any helis to scout
-            }
-            else
-            {
-                // fly helis to scout
+            if (!IsMapCached)
                 trafficControl.FlyHelisToTargets();
-            }
+            trafficControl.DriveRoversToTargets(heuristic, gameOptions.MapOptimizationBuffer);
         }
-
-        trafficControl.DriveRoversToTargets(heuristic, gameOptions.MapOptimizationBuffer);
 
         while (true)
         {

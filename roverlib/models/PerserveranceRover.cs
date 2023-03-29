@@ -244,4 +244,12 @@ public class PerserveranceRover
     {
         CancelSource.Cancel();
     }
+
+    internal async Task DriveStraightToTargetsAsync(List<Location> targetRoute)
+    {
+        foreach (var target in targetRoute)
+        {
+            await DriveToPointAsync(target.X, target.Y);
+        }
+    }
 }

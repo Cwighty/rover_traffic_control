@@ -10,6 +10,7 @@ public delegate void NotifyNeighborsDelegate(NewNeighborsEventArgs args);
 public partial class TrafficControlService
 {
     private readonly HttpClient client;
+    private readonly bool quickMode;
     private Location center = new(0, 0);
     private int radius;
     public List<RoverTeam> Teams { get; private set; } = new();
@@ -20,9 +21,10 @@ public partial class TrafficControlService
 
     public EventHandler GameWonEvent { get; set; }
 
-    public TrafficControlService(HttpClient client)
+    public TrafficControlService(HttpClient client, bool quickMode = false)
     {
         this.client = client;
+        this.quickMode = quickMode;
         Teams = new();
     }
 
@@ -90,6 +92,7 @@ public partial class TrafficControlService
         if (GameBoard == null)
         {
             teams.Add(await JoinNewGame(NameGenerator.Generate(), gameId));
+
         }
 
         //Figure out best starting target
@@ -132,9 +135,12 @@ public partial class TrafficControlService
 
     private void onNewNeighbors(NewNeighborsEventArgs args)
     {
-        foreach (var n in args.Neighbors)
+        if (!quickMode)
         {
-            GameBoard.VisitedNeighbors.TryAdd(n.HashToLong(), n);
+            foreach (var n in args.Neighbors)
+            {
+                GameBoard.VisitedNeighbors.TryAdd(n.HashToLong(), n);
+            }
         }
     }
 
@@ -185,6 +191,15 @@ public partial class TrafficControlService
                         optBuffer
                     )
             );
+        }
+    }
+
+    public void DriveRoversStraightToTargets()
+    {
+        foreach (var team in Teams)
+        {
+            //Include the rovers current location as a target
+            var task = Task.Run(() => team.Rover.DriveStraightToTargetsAsync(TargetRoute));
         }
     }
 
