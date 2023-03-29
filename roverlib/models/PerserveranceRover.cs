@@ -63,6 +63,11 @@ public class PerserveranceRover
             {
                 WinEvent?.Invoke(this, EventArgs.Empty);
             }
+            if (result.message.Contains("Insufficient battery to make move"))
+            {
+                Console.WriteLine("Insufficient battery to make move, waiting 1 second");
+                Thread.Sleep(1000);
+            }
             Location = new Location(result.X, result.Y);
             Battery = result.batteryLevel;
             Enum.TryParse<Orientation>(result.orientation, out var orient);
