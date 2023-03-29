@@ -14,7 +14,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    - name: Copy files to server
-      run: scp -r ./ cwighty@40.90.192.95:/home/cwighty/rover
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+    - name: copy file via ssh key
+      uses: appleboy/scp-action@master
+      with:
+        host: 40.90.192.95
+        username: cwighty
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "./"
+        target: "/home/cwighty/rover"
