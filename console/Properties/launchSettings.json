@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "csharprover": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

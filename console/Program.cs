@@ -16,6 +16,7 @@ internal partial class Program
             "euclidean" => PathUtils.EuclideanDistance,
             _ => PathUtils.ManhattanDistance
         };
+        Console.WriteLine($"Game ID: {gameOptions.GameId}");
         if (gameOptions.StraightPath)
             PathUtils.StraightIncentive = 100;
 
@@ -41,7 +42,7 @@ internal partial class Program
         {
             InitializeMapWithCachedFile(trafficControl, filePath);
         }
-        
+
         await waitForPlayingStatusAsync(trafficControl);
 
         if (gameOptions.QuickMode)

@@ -3,21 +3,20 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "csharprover", "console\csharprover.csproj", "{7F74A284-4A7A-4B72-905E-ADCEE59A7E54}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "csharprover", "console\csharprover.csproj", "{7F74A284-4A7A-4B72-905E-ADCEE59A7E54}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "roverlib", "roverlib\roverlib.csproj", "{FFF11E1B-99D2-41D1-9026-A4E1DEAA28A2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "roverlib", "roverlib\roverlib.csproj", "{FFF11E1B-99D2-41D1-9026-A4E1DEAA28A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "manual", "manual\manual.csproj", "{A4C0DD36-C2B7-4C34-8948-47ECF54B3EAD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "manual", "manual\manual.csproj", "{A4C0DD36-C2B7-4C34-8948-47ECF54B3EAD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{AA1C443A-EA34-4D8C-956B-619EF2398FDC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{AA1C443A-EA34-4D8C-956B-619EF2398FDC}"
+EndProject
+Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{82156C25-B69B-4426-BD6F-FBED6AD5C7A7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{7F74A284-4A7A-4B72-905E-ADCEE59A7E54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -36,5 +35,15 @@ Global
 		{AA1C443A-EA34-4D8C-956B-619EF2398FDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AA1C443A-EA34-4D8C-956B-619EF2398FDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AA1C443A-EA34-4D8C-956B-619EF2398FDC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82156C25-B69B-4426-BD6F-FBED6AD5C7A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82156C25-B69B-4426-BD6F-FBED6AD5C7A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82156C25-B69B-4426-BD6F-FBED6AD5C7A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82156C25-B69B-4426-BD6F-FBED6AD5C7A7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3C276BE5-CBF8-4193-B594-E2F151F316B6}
 	EndGlobalSection
 EndGlobal
