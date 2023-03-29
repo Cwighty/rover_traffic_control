@@ -31,7 +31,8 @@ internal partial class Program
         await trafficControl.JoinUntilClose(
             gameOptions.GameId,
             gameOptions.NumTeams,
-            gameOptions.MaxTeams
+            gameOptions.MaxTeams,
+            gameOptions.Name
         );
 
         var filePath =

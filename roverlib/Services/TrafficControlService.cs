@@ -86,13 +86,12 @@ public partial class TrafficControlService
         radius = Math.Min(GameBoard.Width / 2, GameBoard.Height / 2);
     }
 
-    public async Task JoinUntilClose(string gameId, int numToDrive, int maxTeams = 50)
+    public async Task JoinUntilClose(string gameId, int numToDrive, int maxTeams = 50, string? name = null)
     { //Initialize game by joining one team
         var teams = new List<RoverTeam>();
         if (GameBoard == null)
         {
-            teams.Add(await JoinNewGame(NameGenerator.Generate(), gameId));
-
+            teams.Add(await JoinNewGame(name ?? NameGenerator.Generate(), gameId));
         }
 
         //Figure out best starting target
@@ -105,7 +104,7 @@ public partial class TrafficControlService
             {
                 break;
             }
-            var team = await JoinNewGame(NameGenerator.Generate(), gameId);
+            var team = await JoinNewGame(name ?? NameGenerator.Generate(), gameId);
             teams.Add(team);
         }
 

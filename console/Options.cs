@@ -10,6 +10,9 @@ internal partial class Program
         [Option('m', "maxteams", Required = false, HelpText = "Number of teams to join max")]
         public int MaxTeams { get; set; } = 50;
 
+        [Option('n', "name", Required = false, HelpText = "Name of rover")]
+        public string Name { get; set; } = "Rover";
+
         [Option('g', "game", Required = false, HelpText = "Game ID")]
         public string GameId { get; set; } = "a";
 
