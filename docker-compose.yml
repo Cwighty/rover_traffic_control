@@ -1,6 +1,18 @@
 version: '3.4'
 
 services:
+
+  joiner:
+    image: ${DOCKER_REGISTRY-}csharprover
+    build:
+      context: .
+      dockerfile: console/Dockerfile
+    command: ["-u $URL", "-g$GAMEID", "-m $MAXTEAMS", "-n joiner"]
+    network_mode: "host"
+    volumes:
+      - ./maps:/maps
+      - ./joined:/joined
+
   straight:
     image: ${DOCKER_REGISTRY-}csharprover
     build:
@@ -10,7 +22,9 @@ services:
     network_mode: "host"
     volumes:
       - ./maps:/maps
-
+      - ./joined:/joined
+    depends_on:
+      - joiner
   quick:
     image: ${DOCKER_REGISTRY-}csharprover
     build:
@@ -20,6 +34,9 @@ services:
     network_mode: "host"
     volumes:
       - ./maps:/maps
+      - ./joined:/joined
+    depends_on:
+      - joiner
   smart:
     image: ${DOCKER_REGISTRY-}csharprover
     build:
@@ -29,3 +46,7 @@ services:
     network_mode: "host"
     volumes:
       - ./maps:/maps
+      - ./joined:/joined
+    depends_on:
+      - joiner
+

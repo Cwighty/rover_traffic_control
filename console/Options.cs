@@ -11,7 +11,7 @@ internal partial class Program
         public int MaxTeams { get; set; } = 50;
 
         [Option('n', "name", Required = false, HelpText = "Name of rover")]
-        public string Name { get; set; } = "Rover";
+        public string Name { get; set; } = "smart";
 
         [Option('g', "game", Required = false, HelpText = "Game ID")]
         public string GameId { get; set; } = "a";

@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text.Json;
 using Roverlib.Models;
 using Roverlib.Models.Responses;
 using Roverlib.Utils;
@@ -16,6 +17,7 @@ public partial class TrafficControlService
     public List<RoverTeam> Teams { get; private set; } = new();
     public List<RoverTeam> ReconTeams { get; private set; } = new();
     public Board GameBoard { get; set; }
+    public string GameId { get; set; }
 
     public List<Location> TargetRoute { get; set; } = new();
 
@@ -28,7 +30,35 @@ public partial class TrafficControlService
         Teams = new();
     }
 
+    public async Task InitializeGame(string gameId, string? name)
+    {
+        var res = await JoinNewGameResponse("probe", gameId);
+        if (GameBoard == null)
+            GameBoard = new Board(res);
+        if (TargetRoute.Count == 0)
+            TargetRoute = new List<Location>(
+                TravelingSalesman.GetBestRoute(GameBoard.Targets, GameBoard.Width, GameBoard.Height)
+            );
+        center = GameBoard.Targets[0];
+        GameId = gameId;
+    }
+
     public async Task<RoverTeam> JoinNewGame(string? name, string gameid)
+    {
+        try
+        {
+            var result = await JoinNewGameResponse(name, gameid);
+            var newGame = new RoverTeam(name, result, client);
+            newGame.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
+            return newGame;
+        }
+        catch
+        {
+            return await JoinNewGame(name, gameid);
+        }
+    }
+
+    public async Task<JoinResponse> JoinNewGameResponse(string? name, string gameid)
     {
         var result = await client.GetAsync(
             $"/Game/Join?gameId={gameid}&name={name ?? NameGenerator.Generate()}"
@@ -36,20 +66,8 @@ public partial class TrafficControlService
         if (result.IsSuccessStatusCode)
         {
             var res = await result.Content.ReadFromJsonAsync<JoinResponse>();
-            if (GameBoard == null)
-                GameBoard = new Board(res);
-            if (TargetRoute.Count == 0)
-                TargetRoute = new List<Location>(
-                    TravelingSalesman.GetBestRoute(
-                        GameBoard.Targets,
-                        GameBoard.Width,
-                        GameBoard.Height
-                    )
-                );
-            var newGame = new RoverTeam(name, gameid, res, client);
-            newGame.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
-            center = GameBoard.Targets[0];
-            return newGame;
+
+            return res;
         }
         else
         {
@@ -57,7 +75,7 @@ public partial class TrafficControlService
             {
                 Console.WriteLine("Too many requests, waiting 1 seconds");
                 await Task.Delay(1000);
-                return await JoinNewGame(name, gameid);
+                return await JoinNewGameResponse(name, gameid);
             }
             var res = new ProblemDetail();
             try
@@ -86,48 +104,58 @@ public partial class TrafficControlService
         radius = Math.Min(GameBoard.Width / 2, GameBoard.Height / 2);
     }
 
-    public async Task JoinUntilClose(string gameId, int numToDrive, int maxTeams = 50, string? name = null)
-    { //Initialize game by joining one team
-        var teams = new List<RoverTeam>();
-        if (GameBoard == null)
-        {
-            teams.Add(await JoinNewGame(name ?? NameGenerator.Generate(), gameId));
-        }
-
+    public async Task JoinUntilClose(
+        string gameId,
+        int numToDrive,
+        int maxTeams = 50,
+        string? name = null
+    )
+    {
+        var responses = new List<JoinResponse>();
         //Figure out best starting target
         var bestStartingTarget = TargetRoute[0];
 
         //Join teams until there is a rover close to the best starting target
-        while (!IsThereARoverCloseToTarget(teams, bestStartingTarget))
+        while (!IsThereARoverCloseToTarget(responses, bestStartingTarget))
         {
-            if (teams.Count >= maxTeams)
+            if (responses.Count >= maxTeams)
             {
                 break;
             }
-            var team = await JoinNewGame(name ?? NameGenerator.Generate(), gameId);
-            teams.Add(team);
+            var res = await JoinNewGameResponse(name ?? NameGenerator.Generate(), gameId);
+            responses.Add(res);
         }
 
-        var closestRovers = OrderByDistanceToTarget(teams, bestStartingTarget);
+        var closestRovers = OrderByDistanceToTarget(responses, bestStartingTarget);
         TargetRoute.RemoveAt(0);
 
-        var roverVentureurs = closestRovers.Take(numToDrive).ToList();
-        roverVentureurs.ForEach(
-            x => x.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty)
-        );
-        Teams.AddRange(roverVentureurs);
-
-        //Add the rest for heli recon later
-        ReconTeams.AddRange(teams);
+        //export each team to a file
+        ExportTeamsToFile(closestRovers.Take(3).ToList());
     }
 
-    private List<RoverTeam> OrderByDistanceToTarget(List<RoverTeam> teams, Location bestTarget)
+    private static void ExportTeamsToFile(List<JoinResponse> responses)
     {
-        var teamDistances = new Dictionary<RoverTeam, int>();
-        foreach (var team in teams)
+        int i = 0;
+        foreach (var res in responses)
         {
-            var distance = PathUtils.EuclideanDistance(team.Rover.Location, bestTarget);
-            teamDistances.Add(team, distance);
+            i++;
+            var filename = $"../joined/{i}_{res.token}.json";
+            var json = JsonSerializer.Serialize(res);
+            File.WriteAllText(filename, json);
+        }
+    }
+
+    private List<JoinResponse> OrderByDistanceToTarget(
+        List<JoinResponse> responses,
+        Location bestTarget
+    )
+    {
+        var teamDistances = new Dictionary<JoinResponse, int>();
+        foreach (var res in responses)
+        {
+            var loc = new Location(res.startingX, res.startingY);
+            var distance = PathUtils.EuclideanDistance(loc, bestTarget);
+            teamDistances.Add(res, distance);
         }
         return teamDistances.OrderBy(x => x.Value).Select(x => x.Key).ToList();
     }
@@ -221,7 +249,7 @@ public partial class TrafficControlService
     {
         while (ReconTeams.Count < maxHelis)
         {
-            var team = await JoinNewGame($"Recon{ReconTeams.Count}", Teams.First().GameId);
+            var team = await JoinNewGame($"Recon{ReconTeams.Count}", GameId);
             ReconTeams.Add(team);
         }
         var tileLocations = new List<Location>();
@@ -278,7 +306,7 @@ public partial class TrafficControlService
     }
 
     private bool IsThereARoverCloseToTarget(
-        List<RoverTeam> teams,
+        List<JoinResponse> teams,
         Location target,
         int minDistance = 5
     )
@@ -290,7 +318,7 @@ public partial class TrafficControlService
         foreach (var team in teams)
         {
             if (
-                PathUtils.ManhattanDistance(team.Rover.Location, target)
+                PathUtils.ManhattanDistance(new Location(team.startingX, team.startingY), target)
                 <= distanceToEdge + minDistance
             )
             {
@@ -298,5 +326,51 @@ public partial class TrafficControlService
             }
         }
         return false;
+    }
+
+    public void ImportTeams(string name)
+    {
+        //foreach through directory
+        foreach (var file in Directory.EnumerateFiles("../joined").OrderBy(f => f))
+        {
+            try
+            {
+                using (var stream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.None))
+                {
+                    //deserialize the file
+                    var res = JsonSerializer.Deserialize<JoinResponse>(stream);
+                    //add the team to the list
+                    var team = new RoverTeam(name, res, client);
+                    team.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
+                    team.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty);
+                    Teams.Add(team);
+                    Console.WriteLine($"Imported team {team.Name}");
+                }
+                File.Delete(file);
+                break;
+            }
+            catch (IOException e)
+            {
+                continue;
+            }
+        }
+
+        if (name.Contains("smart"))
+        {
+            foreach (var file in Directory.EnumerateFiles("../joined").Reverse())
+            {
+                try
+                {
+                    var res = JsonSerializer.Deserialize<JoinResponse>(File.ReadAllText(file));
+                    File.Delete(file);
+                    var team = new RoverTeam(name, res, client);
+                    ReconTeams.Add(team);
+                }
+                catch (IOException e)
+                {
+                    continue;
+                }
+            }
+        }
     }
 }
