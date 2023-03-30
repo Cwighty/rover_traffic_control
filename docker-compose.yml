@@ -25,18 +25,18 @@ services:
       - ./joined:/joined
     depends_on:
       - joiner
-  quick:
-    image: ${DOCKER_REGISTRY-}csharprover
-    build:
-      context: .
-      dockerfile: console/Dockerfile
-    command: ["-u $URL", "-g$GAMEID", "-o 1", "-s 200", "-m $MAXTEAMS", "-n quick"]
-    network_mode: "host"
-    volumes:
-      - ./maps:/maps
-      - ./joined:/joined
-    depends_on:
-      - joiner
+  # quick:
+  #   image: ${DOCKER_REGISTRY-}csharprover
+  #   build:
+  #     context: .
+  #     dockerfile: console/Dockerfile
+  #   command: ["-u $URL", "-g$GAMEID", "-o 2", "-s", "-m $MAXTEAMS", "-n quick"]
+  #   network_mode: "host"
+  #   volumes:
+  #     - ./maps:/maps
+  #     - ./joined:/joined
+  #   depends_on:
+  #     - joiner
   smart:
     image: ${DOCKER_REGISTRY-}csharprover
     build:

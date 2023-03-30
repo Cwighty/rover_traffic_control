@@ -18,7 +18,7 @@ internal partial class Program
         };
         Console.WriteLine($"Game ID: {gameOptions.GameId}");
         if (gameOptions.StraightPath)
-            PathUtils.StraightIncentive = 500;
+            PathUtils.StraightIncentive = 1000;
 
         HttpClient client = new HttpClient() { BaseAddress = new Uri(gameOptions.Url) };
         var trafficControl = new TrafficControlService(client, gameOptions.QuickMode);
