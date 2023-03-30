@@ -330,28 +330,34 @@ public partial class TrafficControlService
 
     public void ImportTeams(string name)
     {
-        //foreach through directory
-        foreach (var file in Directory.EnumerateFiles("../joined").OrderBy(f => f))
+        while (Teams.Count < 1)
         {
-            try
+            //foreach through directory
+            foreach (var file in Directory.EnumerateFiles("../joined").OrderBy(f => f))
             {
-                using (var stream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.None))
+                try
                 {
-                    //deserialize the file
-                    var res = JsonSerializer.Deserialize<JoinResponse>(stream);
-                    //add the team to the list
-                    var team = new RoverTeam(name, res, client);
-                    team.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
-                    team.Rover.WinEvent += (s, e) => GameWonEvent?.Invoke(this, EventArgs.Empty);
-                    Teams.Add(team);
-                    Console.WriteLine($"Imported team {team.Name}");
+                    using (
+                        var stream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.None)
+                    )
+                    {
+                        //deserialize the file
+                        var res = JsonSerializer.Deserialize<JoinResponse>(stream);
+                        //add the team to the list
+                        var team = new RoverTeam(name, res, client);
+                        team.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
+                        team.Rover.WinEvent += (s, e) =>
+                            GameWonEvent?.Invoke(this, EventArgs.Empty);
+                        Teams.Add(team);
+                        Console.WriteLine($"Imported team {team.Name}");
+                    }
+                    File.Delete(file);
+                    break;
                 }
-                File.Delete(file);
-                break;
-            }
-            catch (IOException e)
-            {
-                continue;
+                catch (IOException e)
+                {
+                    continue;
+                }
             }
         }
 
