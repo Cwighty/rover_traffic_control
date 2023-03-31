@@ -116,7 +116,8 @@ public partial class TrafficControlService
         var bestStartingTarget = TargetRoute[0];
 
         //Join teams until there is a rover close to the best starting target
-        while (!IsThereARoverCloseToTarget(responses, bestStartingTarget))
+        //while (!IsThereARoverCloseToTarget(responses, bestStartingTarget))
+        while (true)
         {
             if (responses.Count >= maxTeams)
             {
@@ -130,7 +131,7 @@ public partial class TrafficControlService
         TargetRoute.RemoveAt(0);
 
         //export each team to a file
-        ExportTeamsToFile(closestRovers.Take(3).ToList());
+        ExportTeamsToFile(closestRovers.Take(7).ToList());
     }
 
     private static void ExportTeamsToFile(List<JoinResponse> responses)
@@ -308,7 +309,7 @@ public partial class TrafficControlService
     private bool IsThereARoverCloseToTarget(
         List<JoinResponse> teams,
         Location target,
-        int minDistance = 5
+        int minDistance = 1
     )
     {
         var distanceToEdge = Math.Min(
@@ -318,8 +319,8 @@ public partial class TrafficControlService
         foreach (var team in teams)
         {
             if (
-                PathUtils.ManhattanDistance(new Location(team.startingX, team.startingY), target)
-                <= distanceToEdge + minDistance
+                team.startingX <= distanceToEdge + minDistance
+                || team.startingY <= distanceToEdge + minDistance
             )
             {
                 return true;
