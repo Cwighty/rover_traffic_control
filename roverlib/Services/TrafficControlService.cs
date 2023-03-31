@@ -30,9 +30,9 @@ public partial class TrafficControlService
         Teams = new();
     }
 
-    public async Task InitializeGame(string gameId, string? name)
+    public async Task<JoinResponse> InitializeGame(string gameId, string? name)
     {
-        var res = await JoinNewGameResponse("probe", gameId);
+        var res = await JoinNewGameResponse(name ?? "probe", gameId);
         if (GameBoard == null)
             GameBoard = new Board(res);
         if (TargetRoute.Count == 0)
@@ -41,6 +41,7 @@ public partial class TrafficControlService
             );
         center = GameBoard.Targets[0];
         GameId = gameId;
+        return res;
     }
 
     public async Task<RoverTeam> JoinNewGame(string? name, string gameid)

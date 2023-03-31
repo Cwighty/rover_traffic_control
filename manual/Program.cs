@@ -9,7 +9,7 @@ public class Program
     public class Options
     {
         [Option('g', "game", Required = false, HelpText = "Game ID")]
-        public string GameId { get; set; } = "a";
+        public string GameId { get; set; } = "bz";
 
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
         public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
@@ -23,9 +23,12 @@ public class Program
         //join the game
         var client = new HttpClient() { BaseAddress = new Uri(options.Url) };
         var trafficControl = new TrafficControlService(client);
-        await trafficControl.JoinTeams(1, options.GameId, "Caleb");
+        var res = await trafficControl.InitializeGame(options.GameId, "your mum");
+        var team = new RoverTeam("Caleb", res, client);
+        trafficControl.Teams.Add(team);
+        var rover = team.Rover;
+
         var targets = trafficControl.GameBoard.Targets;
-        var rover = trafficControl.Teams[0].Rover;
 
         while (await trafficControl.CheckStatus() != GameStatus.Playing) { }
         while (true)
@@ -40,25 +43,35 @@ public class Program
             // display the targets
             DisplayMessage(targets, rover);
 
-            //move with arrow keys
-            ConsoleKeyInfo keyInfo = Console.ReadKey();
-            switch (keyInfo.Key)
+            // check for input availability before reading a key
+            if (Console.KeyAvailable)
             {
-                case ConsoleKey.UpArrow:
-                    await rover.MoveAsync(Direction.Forward);
-                    break;
-                case ConsoleKey.DownArrow:
-                    await rover.MoveAsync(Direction.Reverse);
-                    break;
-                case ConsoleKey.LeftArrow:
-                    await rover.MoveAsync(Direction.Left);
-                    break;
-                case ConsoleKey.RightArrow:
-                    await rover.MoveAsync(Direction.Right);
-                    break;
-                case ConsoleKey.Spacebar:
-                    break;
+                ConsoleKeyInfo keyInfo = Console.ReadKey(true);
+                switch (keyInfo.Key)
+                {
+                    case ConsoleKey.UpArrow:
+                        await rover.MoveAsync(Direction.Forward);
+                        break;
+                    case ConsoleKey.DownArrow:
+                        await rover.MoveAsync(Direction.Reverse);
+                        break;
+                    case ConsoleKey.LeftArrow:
+                        await rover.MoveAsync(Direction.Left);
+                        break;
+                    case ConsoleKey.RightArrow:
+                        await rover.MoveAsync(Direction.Right);
+                        break;
+                    case ConsoleKey.Spacebar:
+                        break;
+                }
+
+                // Clear any remaining input from the buffer
+                while (Console.KeyAvailable)
+                {
+                    Console.ReadKey(true);
+                }
             }
+
         }
     }
 
