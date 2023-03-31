@@ -20,7 +20,7 @@ public partial class TrafficControlService
     public string GameId { get; set; }
 
     public List<Location> TargetRoute { get; set; } = new();
-
+    public Location StartingLocation { get; private set; }
     public EventHandler GameWonEvent { get; set; }
 
     public TrafficControlService(HttpClient client, bool quickMode = false)
@@ -36,9 +36,12 @@ public partial class TrafficControlService
         if (GameBoard == null)
             GameBoard = new Board(res);
         if (TargetRoute.Count == 0)
+        {
             TargetRoute = new List<Location>(
                 TravelingSalesman.GetBestRoute(GameBoard.Targets, GameBoard.Width, GameBoard.Height)
             );
+            StartingLocation = TargetRoute[0];
+        }
         center = GameBoard.Targets[0];
         GameId = gameId;
         return res;
@@ -222,6 +225,14 @@ public partial class TrafficControlService
 
     public void DriveRoversStraightToTargets()
     {
+        var tasks = new List<Task>();
+        foreach (var team in Teams)
+        {
+            //Include the rovers current location as a target
+            var task = Task.Run(() => team.Rover.DriveToPointAsync(StartingLocation.X, StartingLocation.Y));
+            tasks.Add(task);
+        }
+        Task.WaitAll(tasks.ToArray());
         foreach (var team in Teams)
         {
             //Include the rovers current location as a target
