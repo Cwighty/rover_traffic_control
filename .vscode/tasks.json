@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/console/csharprover.csproj",
+                "${workspaceFolder}/manual/manual.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/console/csharprover.csproj",
+                "${workspaceFolder}/manual/manual.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -33,7 +33,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/console/csharprover.csproj"
+                "${workspaceFolder}/manual/manual.csproj"
             ],
             "problemMatcher": "$msCompile"
         }

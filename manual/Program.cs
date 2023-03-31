@@ -12,9 +12,9 @@ public class Program
         public string GameId { get; set; } = "a";
 
         [Option('u', "url", Required = false, HelpText = "URL of game server")]
-        //public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
+        public string Url { get; set; } = "https://snow-rover.azurewebsites.net/";
         //public string Url { get; set; } = "http://192.168.1.116/";
-        public string Url { get; set; } = "https://localhost:7287/";
+        //public string Url { get; set; } = "https://localhost:7287/";
     }
 
     private static async Task Main(string[] args)
