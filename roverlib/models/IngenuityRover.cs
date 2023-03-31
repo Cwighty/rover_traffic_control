@@ -46,6 +46,11 @@ public class IngenuityRover
         }
         else
         {
+            if (res.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                Console.WriteLine("Heli too many requests, sleeping for 1 second");
+                Thread.Sleep(1000);
+            }
             var result = new ProblemDetail();
             try
             {

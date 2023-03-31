@@ -75,8 +75,8 @@ internal partial class Program
         }
         else
         {
-            if (!IsMapCached)
-                trafficControl.FlyHelisToTargets();
+            //if (!IsMapCached)
+            trafficControl.FlyHelisToTargets();
             trafficControl.DriveRoversToTargets(heuristic, gameOptions.MapOptimizationBuffer);
         }
 
@@ -112,11 +112,13 @@ internal partial class Program
     {
         if (!gameOptions.QuickMode)
         {
+            Console.WriteLine("Caching map...");
             MapHelper.WriteMapToCSV(
                 trafficControl.GameBoard.VisitedNeighbors,
                 filePath,
                 trafficControl.GameBoard.LowResMap
             );
+            Console.WriteLine("Map cached!");
         }
     }
 
@@ -138,8 +140,6 @@ internal partial class Program
 
     private static async Task ReconAndCacheMap(TrafficControlService trafficControl)
     {
-        if (IsMapCached)
-            return;
         trafficControl.CancelAll();
         await trafficControl.FlyHeliReconMission();
     }

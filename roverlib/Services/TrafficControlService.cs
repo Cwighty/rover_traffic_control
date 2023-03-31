@@ -163,12 +163,9 @@ public partial class TrafficControlService
 
     private void onNewNeighbors(NewNeighborsEventArgs args)
     {
-        if (!quickMode)
+        foreach (var n in args.Neighbors)
         {
-            foreach (var n in args.Neighbors)
-            {
-                GameBoard.VisitedNeighbors.TryAdd(n.HashToLong(), n);
-            }
+            GameBoard.VisitedNeighbors[n.HashToLong()] = n;
         }
     }
 
@@ -248,6 +245,7 @@ public partial class TrafficControlService
 
     private async Task HeliScanAsync(int maxHelis)
     {
+        Console.WriteLine($"Joined Recon Teams {ReconTeams.Count}");
         while (ReconTeams.Count < maxHelis)
         {
             var team = await JoinNewGame($"Recon{ReconTeams.Count}", GameId);
@@ -371,6 +369,7 @@ public partial class TrafficControlService
                     var res = JsonSerializer.Deserialize<JoinResponse>(File.ReadAllText(file));
                     File.Delete(file);
                     var team = new RoverTeam(name, res, client);
+                    team.NotifyGameManager += new NotifyNeighborsDelegate(onNewNeighbors);
                     ReconTeams.Add(team);
                 }
                 catch (IOException e)

@@ -12,6 +12,7 @@ public class PerserveranceRover
     private readonly Action<IEnumerable<Neighbor>> updateVisited;
     private string token;
     private CancellationTokenSource CancelSource;
+    private int straightDrivingIncentive = 0;
 
     public PerserveranceRover(
         JoinResponse response,
@@ -43,7 +44,6 @@ public class PerserveranceRover
     public int InitialBattery { get; set; }
     public int Battery { get; set; }
     private List<int> batteryLevels { get; set; } = new List<int>();
-    private int straightDrivingIncentive = 0;
     public Location Location { get; set; }
     public Orientation Orientation { get; set; }
 
@@ -195,11 +195,13 @@ public class PerserveranceRover
         ConcurrentDictionary<long, Neighbor> map,
         Location target,
         Func<(int, int), (int, int), int> heuristic,
-        int optBuffer
+        int optBuffer,
+        int targetsLeft
     )
     {
         while (Location != target)
         {
+            Console.WriteLine("Calculating path...");
             var path = new List<(int, int)>();
             while (path.Count == 0)
             {
@@ -215,13 +217,18 @@ public class PerserveranceRover
                     optBuffer,
                     straightDrivingIncentive
                 );
-                if (Battery > cost)
+                if (targetsLeft == 1 && Battery > cost)
                 {
                     straightDrivingIncentive = 100;
                 }
+                if (cost != -1)
+                {
+                    Console.WriteLine(
+                        $"Path found, cost: {cost}, straight driving incentive: {straightDrivingIncentive}"
+                    );
+                }
             }
-
-            await DriveAlongPathAsync(path.ToQueue());
+            await DriveAlongPathAsync(path.Take(50).ToQueue());
         }
     }
 
@@ -238,12 +245,15 @@ public class PerserveranceRover
         );
         if (localTargets.Count == 0)
         {
+            Console.WriteLine("Rover Won!");
+            WinEvent.Invoke(this, EventArgs.Empty);
             return;
         }
         //var target = PathUtils.GetNearestTarget(Location, localTargets);
         var target = localTargets[0];
         Console.WriteLine($"Driving to target {target}");
-        var task = PathfindToPointAsync(map, target, heuristic, optBuffer);
+        var targetsLeft = localTargets.Count;
+        var task = PathfindToPointAsync(map, target, heuristic, optBuffer, targetsLeft);
         await task;
         localTargets.Remove(target);
         DriveToTargets(map, localTargets, heuristic, optBuffer);

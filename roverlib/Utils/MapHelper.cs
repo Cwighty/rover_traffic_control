@@ -1,10 +1,14 @@
 using System.Collections.Concurrent;
 using System.Text;
 using Roverlib.Models.Responses;
+
 namespace Roverlib.Utils;
+
 public static class MapHelper
 {
-    public static ConcurrentDictionary<long, Neighbor> InitializeMap(List<LowResolutionMap> lowResolutionMap)
+    public static ConcurrentDictionary<long, Neighbor> InitializeMap(
+        List<LowResolutionMap> lowResolutionMap
+    )
     {
         // get the file path
         var path = $"./maps/{GetFileNameFromMap(lowResolutionMap)}";
@@ -21,7 +25,9 @@ public static class MapHelper
         }
     }
 
-    public static ConcurrentDictionary<long, Neighbor> InitializeDefaultMap(List<LowResolutionMap> lowResolutionMap)
+    public static ConcurrentDictionary<long, Neighbor> InitializeDefaultMap(
+        List<LowResolutionMap> lowResolutionMap
+    )
     {
         // create the map from the low resolution map
         var map = new ConcurrentDictionary<long, Neighbor>();
@@ -38,11 +44,13 @@ public static class MapHelper
                         Difficulty = lowResMap.averageDifficulty
                     };
                     map.TryAdd(n.HashToLong(), n);
-                };
+                }
+                ;
             }
         }
         return map;
     }
+
     public static ConcurrentDictionary<long, Neighbor> ReadMapFromCSV(string path)
     {
         var map = new ConcurrentDictionary<long, Neighbor>();
@@ -66,8 +74,11 @@ public static class MapHelper
         return map;
     }
 
-
-    public static void WriteMapToCSV(ConcurrentDictionary<long, Neighbor> map, string path, List<LowResolutionMap> lowResMap)
+    public static void WriteMapToCSV(
+        ConcurrentDictionary<long, Neighbor> map,
+        string path,
+        List<LowResolutionMap> lowResMap
+    )
     {
         if (map.Count == 0)
             return;
@@ -79,7 +90,9 @@ public static class MapHelper
             var line = new List<string>();
             for (int x = 0; x <= maxX; x++)
             {
-                var cell = map.TryGetValue(new Neighbor() { X = x, Y = y }.HashToLong(), out var n) ? n.Difficulty : GetLowResMapValue(x, y, lowResMap);
+                var cell = map.TryGetValue(new Neighbor() { X = x, Y = y }.HashToLong(), out var n)
+                    ? n.Difficulty
+                    : GetLowResMapValue(x, y, lowResMap);
                 line.Add(cell.ToString());
             }
             lines.Add(string.Join(',', line));
@@ -91,7 +104,12 @@ public static class MapHelper
     {
         foreach (var tile in lowResMap)
         {
-            if (x >= tile.lowerLeftX && x <= tile.upperRightX && y >= tile.lowerLeftY && y <= tile.upperRightY)
+            if (
+                x >= tile.lowerLeftX
+                && x <= tile.upperRightX
+                && y >= tile.lowerLeftY
+                && y <= tile.upperRightY
+            )
             {
                 return tile.averageDifficulty;
             }
@@ -128,5 +146,4 @@ public static class MapHelper
         var filename = $"map_{hashcode}.csv";
         return filename;
     }
-
 }
