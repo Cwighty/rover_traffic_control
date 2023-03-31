@@ -23,7 +23,7 @@ public class Program
         //join the game
         var client = new HttpClient() { BaseAddress = new Uri(options.Url) };
         var trafficControl = new TrafficControlService(client);
-        var res = await trafficControl.InitializeGame(options.GameId, "your mum");
+        var res = await trafficControl.InitializeGame(options.GameId, "yeeeeeeee");
         var team = new RoverTeam("Caleb", res, client);
         trafficControl.Teams.Add(team);
         var rover = team.Rover;

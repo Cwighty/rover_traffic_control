@@ -83,6 +83,7 @@ public class PerserveranceRover
             }
             else
             {
+                Console.WriteLine("Perseverance too many requests, sleeping for 1 second");
                 Thread.Sleep(1000);
             }
         }
