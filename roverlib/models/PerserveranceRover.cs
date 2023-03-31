@@ -59,10 +59,6 @@ public class PerserveranceRover
         if (res.IsSuccessStatusCode)
         {
             var result = await res.Content.ReadFromJsonAsync<MoveResponse>();
-            if (result.message.Contains("You made it to all the targets!"))
-            {
-                WinEvent?.Invoke(this, EventArgs.Empty);
-            }
             if (result.message.Contains("Insufficient battery to make move"))
             {
                 Console.WriteLine("Insufficient battery to make move, waiting 1 second");
